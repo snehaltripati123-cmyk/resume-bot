@@ -1,0 +1,850 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Chatbot</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 260px;
+            background: #2c3e50; 
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar.hidden { margin-left: -300px; }
+
+        .sidebar h3 { margin-top: 0; font-size: 1.1em; color: #bdc3c7; border-bottom: 1px solid #34495e; padding-bottom: 10px; display: flex; justify-content: space-between; }
+        .toggle-btn { background: none; border: none; color: #bdc3c7; cursor: pointer; font-size: 1.2em; }
+        
+        .history-list { flex-grow: 1; overflow-y: auto; list-style: none; padding: 0; margin: 15px 0; }
+        .history-item { 
+            padding: 10px; cursor: pointer; border-radius: 6px; margin-bottom: 8px; 
+            font-size: 0.95em; color: #ecf0f1;
+            transition: background 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .history-item:hover { background: #34495e; }
+        .history-item.active { background: #007bff; color: white; font-weight: 600; }
+
+        /* --- MAIN AREA --- */
+        .main { 
+            flex-grow: 1; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;     
+            position: relative; 
+        }
+
+        /* --- CHAT CARD --- */
+        .chat-card {
+            background: white;
+            width: 600px;
+            height: 85vh;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+            position: relative;
+        }
+
+        /* Header */
+        .card-header { text-align: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .card-header h2 { margin: 0; font-size: 1.6em; color: #333; }
+        
+        /* Upload Button Wrapper */
+        .btn-group { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
+        .action-btn { background: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9em; font-weight: 600; }
+        .action-btn:hover { background: #0056b3; }
+
+        /* Chat Window */
+        .chat-box { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            border: 1px solid #f0f0f0; 
+            border-radius: 8px;
+            padding: 15px; 
+            background: #fafafa; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            margin-bottom: 15px;
+        }
+
+        /* Input Area */
+        .input-group { display: flex; gap: 10px; }
+        input[type="text"] { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        .send-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .send-btn:disabled { background: #ccc; }
+
+        /* Messages */
+        .msg { padding: 10px 15px; border-radius: 12px; max-width: 85%; line-height: 1.5; font-size: 14px; }
+        .You { background: #007bff; color: white; align-self: flex-end; text-align: right; border-bottom-right-radius: 2px; }
+        .Bot { background: #e9ecef; color: #333; align-self: flex-start; text-align: left; border-bottom-left-radius: 2px; }
+        .Bot strong { font-weight: 700; color: #000; }
+        .Bot ul { margin: 5px 0; padding-left: 20px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h3>
+            <span>History</span> 
+            <button class="toggle-btn" onclick="toggleSidebar()">✖</button>
+        </h3>
+        <ul id="historyList" class="history-list"></ul>
+    </div>
+
+    <div class="main">
+        <button onclick="toggleSidebar()" style="position: absolute; top: 20px; left: 20px; padding: 10px; cursor: pointer; border:none; background: #ddd; border-radius: 5px;">☰</button>
+
+        <div class="chat-card">
+            <div class="card-header">
+                <h2>Resume Chatbot</h2>
+                <div class="btn-group">
+                    <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect()">
+                    <button class="action-btn" onclick="document.getElementById('fileInput').click()">Upload a Resume</button>
+                </div>
+            </div>
+
+            <div id="chat" class="chat-box"></div>
+
+            <div class="input-group">
+                <input type="text" id="questionInput" placeholder="Ask a question..." disabled>
+                <button id="sendBtn" class="send-btn" onclick="askQuestion()" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    var currentResumeId = null; 
+
+    window.onload = loadHistory;
+
+    function toggleSidebar() {
+        document.getElementById("sidebar").classList.toggle("hidden");
+    }
+
+    function loadHistory() {
+        fetch("/history")
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById("historyList");
+                list.innerHTML = "";
+                data.reverse().forEach(item => {
+                    const li = document.createElement("li");
+                    li.className = "history-item";
+                    li.id = "hist-" + item.id;
+                    li.innerText = item.title;
+                    li.onclick = () => switchResume(item.id, item.title, false); // False = don't show welcome msg again
+                    if (item.id === currentResumeId) li.classList.add("active");
+                    list.appendChild(li);
+                });
+            });
+    }
+
+    function handleFileSelect() {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files.length) return;
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        // Show loading in button
+        const btn = document.querySelector(".action-btn");
+        const originalText = btn.innerText;
+        btn.innerText = "Uploading...";
+        btn.disabled = true;
+
+        fetch("/upload", { method: "POST", body: formData })
+        .then(r => r.json())
+        .then(data => {
+            // 1. Show Success Popup (SweetAlert2)
+            Swal.fire({
+                icon: 'success',
+                title: 'Uploaded!',
+                text: 'Resume processed successfully.',
+                timer: 1500,
+                showConfirmButton: false
+            });
+
+            // 2. Refresh UI
+            loadHistory();
+            switchResume(data.resume_id, data.title, true); // True = Show new welcome msg
+            
+            btn.innerText = originalText;
+            btn.disabled = false;
+        })
+        .catch(err => {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Upload failed.',
+            });
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+    }
+
+    function switchResume(id, title, isNewUpload) {
+        currentResumeId = id;
+        
+        // Clear chat
+        document.getElementById("chat").innerHTML = ""; 
+        document.getElementById("questionInput").disabled = false;
+        document.getElementById("sendBtn").disabled = false;
+        document.getElementById("questionInput").focus();
+
+        if (isNewUpload) {
+            // NEW: Friendly welcome message for new uploads
+            addMessage("Bot", "Hello! I have analyzed the resume. **How may I help you?**");
+        } else {
+            // Fetch old messages for existing history
+            fetch(`/chat/${id}`)
+                .then(r => r.json())
+                .then(msgs => {
+                    msgs.forEach(m => addMessage(m.sender, m.text));
+                    if (msgs.length === 0) {
+                        addMessage("Bot", "Hello! I have analyzed the resume. **How may I help you?**");
+                    }
+                });
+        }
+        
+        // Highlight active sidebar item
+        document.querySelectorAll(".history-item").forEach(el => el.classList.remove("active"));
+        const activeItem = document.getElementById("hist-" + id);
+        if (activeItem) activeItem.classList.add("active");
+    }
+
+    function askQuestion() {
+        const qInput = document.getElementById("questionInput");
+        const q = qInput.value.trim();
+        if (!q) return;
+
+        addMessage("You", q);
+        qInput.value = ""; 
+
+        fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resume_id: currentResumeId, question: q })
+        })
+        .then(r => r.json())
+        .then(data => {
+            addMessage("Bot", data.answer);
+            if (data.new_title) {
+                const sidebarItem = document.getElementById("hist-" + currentResumeId);
+                if (sidebarItem) sidebarItem.innerText = data.new_title;
+            }
+        })
+        .catch(err => addMessage("Bot", "Error getting answer."));
+    }
+
+    function addMessage(sender, text) {
+        const chatDiv = document.getElementById("chat");
+        const msgDiv = document.createElement("div");
+        msgDiv.className = "msg " + sender;
+        
+        if (sender === 'Bot') msgDiv.innerHTML = marked.parse(text);
+        else msgDiv.innerText = text;
+        
+        chatDiv.appendChild(msgDiv);
+        chatDiv.scrollTop = chatDiv.scrollHeight; 
+    }
+
+    // Enter key listener
+    document.getElementById("questionInput").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") { e.preventDefault(); document.getElementById("sendBtn").click(); }
+    });
+</script>
+
+</body>
+</html> -->
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Assistant</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        /* --- CORE STYLES --- */
+
+        html,body {
+            height: 100%;
+            width: 100%;
+            overflow-x: hidden;
+        }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            background-color: #f8f9fa; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+         
+            color: #333;
+        }
+
+        /* --- HEADER --- */
+        header {
+            display: flex;
+            align-items: center;
+            padding: 15px 30px;
+            background: white;
+            border-bottom: 1px solid #eee;
+        }
+        .logo-icon {
+            background: #007bff;
+            color: white;
+            padding: 8px;
+            border-radius: 8px;
+            margin-right: 12px;
+            font-size: 20px;
+        }
+        .app-name { font-weight: 600; font-size: 16px; }
+        .app-sub { color: #666; font-size: 12px; margin-left: 5px; }
+        
+        /* --- MAIN CONTAINER --- */
+        .container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* Centers initial content */
+            padding: 20px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* --- WELCOME STATE (Clean & Simple) --- */
+        .welcome-screen {
+            text-align: center;
+            max-width: 500px;
+            animation: fadeIn 0.5s ease;
+        }
+        .bot-avatar {
+            background: #e3f2fd;
+            color: #007bff;
+            width: 80px; height: 80px;
+            border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 25px auto;
+            font-size: 40px;
+        }
+        .welcome-title { font-size: 26px; font-weight: 700; margin-bottom: 10px; color: #2c3e50; }
+        .welcome-text { color: #666; margin-bottom: 40px; line-height: 1.6; font-size: 15px;}
+
+        /* Upload Button (Primary Action) */
+        .upload-hero-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+        }
+        .upload-hero-btn:hover { 
+            background: #0056b3; 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,123,255,0.4);
+        }
+
+        /* --- CHAT STATE (Hidden initially) --- */
+        .chat-container {
+            display: none; /* Hidden by default */
+            width: 100%;
+            max-width: 800px;
+            flex-grow: 1;
+            flex-direction: column;
+            gap: 20px;
+            padding-bottom: 20px;
+        }
+        .msg { padding: 15px 20px; border-radius: 12px; line-height: 1.6; max-width: 85%; font-size: 15px; }
+        .user { background: #007bff; color: white; align-self: flex-end; margin-left: auto; border-bottom-right-radius: 2px; }
+        .bot { background: white; border: 1px solid #eee; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .bot strong { color: #000; font-weight: 600; }
+        .bot ul { padding-left: 20px; margin: 5px 0; }
+
+        /* --- INPUT AREA (Fixed at bottom) --- */
+        .input-wrapper {
+            width: 100%;
+            background: white;
+            padding: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: center;
+        }
+        .input-box {
+            width: 100%;
+            max-width: 800px;
+            position: relative;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 15px 50px 15px 20px;
+            border-radius: 12px;
+            border: 1px solid #ddd;
+            font-size: 15px;
+            outline: none;
+            box-sizing: border-box;
+            background: #f8f9fa;
+        }
+        input[type="text"]:focus { border-color: #007bff; background: white; }
+        
+        .send-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            color: #007bff;
+            border: none;
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+        }
+        .send-btn:disabled { color: #ccc; cursor: not-allowed; }
+        .send-btn:hover:not(:disabled) { background: #f0f7ff; }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-icon"><i class="ph ph-robot"></i></div>
+        <div>
+            <span class="app-name">Resume Assistant</span>
+        </div>
+        <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect()">
+    </header>
+
+    <div class="container" id="mainContainer">
+        
+        <div class="welcome-screen" id="welcomeScreen">
+            <div class="bot-avatar"><i class="ph ph-files"></i></div>
+            <div class="welcome-title">Upload your Resume</div>
+            <div class="welcome-text">I'll analyze it instantly and answer any questions you have.<br>Supported: PDF, DOCX, TXT, Images</div>
+
+            <button class="upload-hero-btn" onclick="document.getElementById('fileInput').click()">
+                <i class="ph ph-upload-simple"></i> Upload Resume
+            </button>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            </div>
+
+    </div>
+
+    <div class="input-wrapper">
+        <div class="input-box">
+            <input type="text" id="questionInput" placeholder="Ask me anything about your resume..." disabled>
+            <button class="send-btn" id="sendBtn" onclick="askQuestion()" disabled>
+                <i class="ph ph-paper-plane-right"></i>
+            </button>
+        </div>
+    </div>
+
+<script>
+    var resume_id = null; 
+
+    // Triggered when file is selected
+    function handleFileSelect() {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files.length) return;
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        // Transition to chat UI immediately
+        const btn = document.querySelector(".upload-hero-btn");
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "Uploading...";
+        btn.disabled = true;
+
+        fetch("/upload", { method: "POST", body: formData })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                Swal.fire({ icon: 'error', title: 'Error', text: data.error });
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            } else {
+                resume_id = data.resume_id;
+                
+                // Show Success Popup
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Uploaded!',
+                    text: 'Resume analysis complete.',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+
+                // Switch View
+                switchToChatMode();
+                addMessage("Bot", `**${data.title || "Resume"}** uploaded successfully! How can I help you?`, "bot");
+                
+                // Enable inputs
+                document.getElementById("questionInput").disabled = false;
+                document.getElementById("sendBtn").disabled = false;
+                document.getElementById("questionInput").focus();
+            }
+        })
+        .catch(err => {
+            Swal.fire({ icon: 'error', title: 'Network Error', text: 'Upload failed.' });
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    }
+
+    function switchToChatMode() {
+        document.getElementById("welcomeScreen").style.display = "none";
+        const chatContainer = document.getElementById("chatContainer");
+        chatContainer.style.display = "flex";
+        
+        // Align container to top now that we are chatting
+        document.getElementById("mainContainer").style.justifyContent = "flex-start";
+    }
+
+    function askQuestion() {
+        const qInput = document.getElementById("questionInput");
+        const q = qInput.value.trim();
+        if (!q) return;
+
+        // Ensure we are in chat mode (handles edge cases)
+        if(document.getElementById("welcomeScreen").style.display !== "none") {
+            switchToChatMode();
+        }
+
+        addMessage("You", q, "user");
+        qInput.value = ""; 
+
+        if (!resume_id) {
+            setTimeout(() => addMessage("Bot", "Please upload a resume first using the top button.", "bot"), 500);
+            return;
+        }
+
+        fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resume_id: resume_id, question: q })
+        })
+        .then(r => r.json())
+        .then(data => {
+            addMessage("Bot", data.answer, "bot");
+        })
+        .catch(err => addMessage("Bot", "Error getting answer.", "bot"));
+    }
+
+    function addMessage(sender, text, type) {
+        const chatDiv = document.getElementById("chatContainer");
+        const msgDiv = document.createElement("div");
+        msgDiv.className = "msg " + type;
+        
+        if (type === 'bot') {
+            msgDiv.innerHTML = marked.parse(text);
+        } else {
+            msgDiv.innerText = text;
+        }
+        
+        chatDiv.appendChild(msgDiv);
+        
+        // Auto Scroll
+        window.scrollTo(0, document.body.scrollHeight);
+        document.getElementById("mainContainer").scrollTop = document.getElementById("mainContainer").scrollHeight;
+    }
+
+    // Enter key support
+    document.getElementById("questionInput").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") { e.preventDefault(); document.getElementById("sendBtn").click(); }
+    });
+</script>
+
+</body>
+</html>
+ -->
+
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Chatbot</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: 260px;
+            background: #2c3e50; 
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            transition: margin-left 0.3s ease;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar.hidden { margin-left: -300px; }
+
+        .sidebar h3 { 
+            margin-top: 0; font-size: 1.1em; color: #bdc3c7; 
+            border-bottom: 1px solid #34495e; padding-bottom: 10px; 
+            display: flex; justify-content: space-between; 
+        }
+        
+        .toggle-btn { background: none; border: none; color: #bdc3c7; cursor: pointer; font-size: 1.2em; }
+        
+        .history-list { flex-grow: 1; overflow-y: auto; list-style: none; padding: 0; margin: 15px 0; }
+        .history-item { 
+            padding: 10px; cursor: pointer; border-radius: 6px; margin-bottom: 8px; 
+            font-size: 0.95em; color: #ecf0f1;
+            transition: background 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .history-item:hover { background: #34495e; }
+        .history-item.active { background: #007bff; color: white; font-weight: 600; }
+
+        /* --- MAIN AREA --- */
+        .main { 
+            flex-grow: 1; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;     
+            position: relative; 
+        }
+
+        /* Toggle button (Visible when sidebar is closed) */
+        .menu-btn {
+            position: absolute; top: 20px; left: 20px; 
+            padding: 10px; cursor: pointer; border:none; 
+            background: #ddd; border-radius: 5px;
+        }
+
+        /* CHAT CARD */
+        .chat-card {
+            background: white;
+            width: 600px;
+            height: 85vh;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            padding: 25px;
+            position: relative;
+        }
+
+        .card-header { text-align: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .card-header h2 { margin: 0; font-size: 1.6em; color: #333; }
+        
+        .btn-group { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
+        .action-btn { background: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9em; font-weight: 600; }
+        .action-btn:hover { background: #0056b3; }
+
+        .chat-box { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            border: 1px solid #f0f0f0; 
+            border-radius: 8px;
+            padding: 15px; 
+            background: #fafafa; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 12px; 
+            margin-bottom: 15px;
+        }
+
+        .input-group { display: flex; gap: 10px; }
+        input[type="text"] { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        .send-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .send-btn:disabled { background: #ccc; }
+
+        .msg { padding: 10px 15px; border-radius: 12px; max-width: 85%; line-height: 1.5; font-size: 14px; }
+        .You { background: #007bff; color: white; align-self: flex-end; text-align: right; border-bottom-right-radius: 2px; }
+        .Bot { background: #e9ecef; color: #333; align-self: flex-start; text-align: left; border-bottom-left-radius: 2px; }
+        .Bot strong { font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h3>
+            <span>History</span> 
+            <button class="toggle-btn" onclick="toggleSidebar()">✖</button>
+        </h3>
+        <ul id="historyList" class="history-list"></ul>
+    </div>
+
+    <div class="main">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+
+        <div class="chat-card">
+            <div class="card-header">
+                <h2 id="headerTitle">Resume Chatbot</h2>
+                <div class="btn-group">
+                    <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect()">
+                    <button class="action-btn" onclick="document.getElementById('fileInput').click()">Upload a Resume</button>
+                </div>
+            </div>
+
+            <div id="chat" class="chat-box"></div>
+
+            <div class="input-group">
+                <input type="text" id="questionInput" placeholder="Ask a question..." disabled>
+                <button id="sendBtn" class="send-btn" onclick="askQuestion()" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    var currentResumeId = null; 
+
+    // Load history when page opens
+    window.onload = loadHistory;
+
+    function toggleSidebar() {
+        document.getElementById("sidebar").classList.toggle("hidden");
+    }
+
+    function loadHistory() {
+        fetch("/history")
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById("historyList");
+                list.innerHTML = "";
+                data.forEach(item => {
+                    const li = document.createElement("li");
+                    li.className = "history-item";
+                    li.id = "hist-" + item.id;
+                    li.innerText = item.title;
+                    li.onclick = () => switchResume(item.id, item.title, false);
+                    if (item.id === currentResumeId) li.classList.add("active");
+                    list.appendChild(li);
+                });
+            });
+    }
+
+    function handleFileSelect() {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files.length) return;
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        // Show uploading state
+        const btn = document.querySelector(".action-btn");
+        const originalText = btn.innerText;
+        btn.innerText = "Uploading...";
+        btn.disabled = true;
+
+        fetch("/upload", { method: "POST", body: formData })
+        .then(r => r.json())
+        .then(data => {
+            Swal.fire({ icon: 'success', title: 'Uploaded!', text: 'Resume ready.', timer: 1500, showConfirmButton: false });
+            
+            loadHistory(); // Refresh sidebar
+            switchResume(data.resume_id, data.title, true);
+            
+            btn.innerText = originalText;
+            btn.disabled = false;
+        })
+        .catch(err => {
+            Swal.fire({ icon: 'error', title: 'Error', text: 'Upload failed.' });
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+    }
+
+    function switchResume(id, title, isNew) {
+        currentResumeId = id;
+        document.getElementById("headerTitle").innerText = title;
+        document.getElementById("chat").innerHTML = ""; 
+        document.getElementById("questionInput").disabled = false;
+        document.getElementById("sendBtn").disabled = false;
+        document.getElementById("questionInput").focus();
+
+        if (isNew) {
+            addMessage("Bot", `**${title}** uploaded. Ask me anything!`);
+        } else {
+            addMessage("Bot", `Loaded **${title}**. What would you like to know?`);
+        }
+        
+        // Highlight active item in sidebar
+        document.querySelectorAll(".history-item").forEach(el => el.classList.remove("active"));
+        const activeItem = document.getElementById("hist-" + id);
+        if (activeItem) activeItem.classList.add("active");
+    }
+
+    function askQuestion() {
+        const qInput = document.getElementById("questionInput");
+        const q = qInput.value.trim();
+        if (!q) return;
+
+        addMessage("You", q);
+        qInput.value = ""; 
+
+        fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ resume_id: currentResumeId, question: q })
+        })
+        .then(r => r.json())
+        .then(data => {
+            addMessage("Bot", data.answer);
+            // Update title if AI generated a new one
+            if (data.new_title) {
+                const sidebarItem = document.getElementById("hist-" + currentResumeId);
+                if (sidebarItem) sidebarItem.innerText = data.new_title;
+                document.getElementById("headerTitle").innerText = data.new_title;
+            }
+        });
+    }
+
+    function addMessage(sender, text) {
+        const chatDiv = document.getElementById("chat");
+        const msgDiv = document.createElement("div");
+        msgDiv.className = "msg " + sender;
+        
+        if (sender === 'Bot') msgDiv.innerHTML = marked.parse(text);
+        else msgDiv.innerText = text;
+        
+        chatDiv.appendChild(msgDiv);
+        chatDiv.scrollTop = chatDiv.scrollHeight; 
+    }
+
+    document.getElementById("questionInput").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") { e.preventDefault(); document.getElementById("sendBtn").click(); }
+    });
+</script>
+
+</body>
+</html>
