@@ -1,62 +1,54 @@
 import os
-from pypdf import PdfReader
-import docx  # from python-docx
+import pdfplumber
+from docx import Document
+import pytesseract
+from pdf2image import convert_from_path
 
-# OCR Support (Optional - prevents crash if not installed)
-try:
-    from PIL import Image
-    import pytesseract
-    HAS_OCR = True
-except ImportError:
-    HAS_OCR = False
+# Set Tesseract path if on Windows (Adjust if your path is different)
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 def extract_text(file_path):
     """
-    Main function to detect file type and call the right extractor.
+    Smart extraction: Tries FAST method first. Uses SLOW OCR only if needed.
     """
-    ext = os.path.splitext(file_path)[1].lower()
+    ext = file_path.rsplit('.', 1)[-1].lower()
+    text = ""
 
-    if ext == ".pdf":
-        return extract_from_pdf(file_path)
-    elif ext in [".docx", ".doc"]:
-        return extract_from_docx(file_path)
-    elif ext == ".txt":
-        return extract_from_txt(file_path)
-    elif ext in [".png", ".jpg", ".jpeg"]:
-        return extract_from_image(file_path)
-    else:
-        return f"Unsupported file format: {ext}"
-
-# --- Helper Functions ---
-
-def extract_from_pdf(path):
     try:
-        reader = PdfReader(path)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text() + "\n"
-        return text.strip()
-    except Exception as e:
-        return f"Error reading PDF: {e}"
+        # 1. Handle PDF
+        if ext == 'pdf':
+            # FAST WAY: Try to read text directly
+            try:
+                with pdfplumber.open(file_path) as pdf:
+                    for page in pdf.pages:
+                        extracted = page.extract_text()
+                        if extracted:
+                            text += extracted + "\n"
+            except Exception as e:
+                print(f"Fast PDF read failed: {e}")
 
-def extract_from_docx(path):
-    try:
-        doc = docx.Document(path)
-        return "\n".join([para.text for para in doc.paragraphs])
-    except Exception as e:
-        return f"Error reading DOCX: {e}"
+            # SLOW WAY: If text is still empty (scanned PDF), use OCR
+            if not text.strip():
+                print(f"⚠️ Fast read failed for {file_path}. Switching to OCR (Slow)...")
+                try:
+                    images = convert_from_path(file_path)
+                    for img in images:
+                        text += pytesseract.image_to_string(img) + "\n"
+                except Exception as e:
+                    print(f"OCR failed: {e}")
 
-def extract_from_txt(path):
-    try:
-        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
-            return f.read()
-    except Exception as e:
-        return f"Error reading TXT: {e}"
+        # 2. Handle DOCX (Fast)
+        elif ext == 'docx':
+            doc = Document(file_path)
+            for para in doc.paragraphs:
+                text += para.text + "\n"
 
-def extract_from_image(path):
-    if not HAS_OCR:
-        return "[Error] Image detected but Tesseract-OCR is not installed."
-    try:
-        return pytesseract.image_to_string(Image.open(path))
+        # 3. Handle Text Files
+        elif ext == 'txt':
+            with open(file_path, 'r', encoding='utf-8') as f:
+                text = f.read()
+
     except Exception as e:
-        return f"Error reading Image: {e}"
+        print(f"Error reading {file_path}: {e}")
+
+    return text.strip()

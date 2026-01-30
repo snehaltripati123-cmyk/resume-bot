@@ -591,12 +591,14 @@
 </html>
  -->
 
- <!DOCTYPE html>
+ <!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resume Chatbot</title>
+    <title>Resume Comparison</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     
@@ -709,12 +711,18 @@
 
         <div class="chat-card">
             <div class="card-header">
-                <h2 id="headerTitle">Resume Chatbot</h2>
-                <div class="btn-group">
-                    <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect()">
-                    <button class="action-btn" onclick="document.getElementById('fileInput').click()">Upload a Resume</button>
-                </div>
-            </div>
+                 <h2 id="headerTitle">Resume Chatbot</h2>
+
+                 <div class="btn-group">
+                     <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect()">
+                     <button class="action-btn" onclick="document.getElementById('fileInput').click()">Upload a Resume</button>
+
+                     <button class="action-btn" style="background:#444" onclick="startComparison()">
+                         Compare Candidates
+                     </button>
+         </div>
+</div>
+
 
             <div id="chat" class="chat-box"></div>
 
@@ -844,6 +852,364 @@
     document.getElementById("questionInput").addEventListener("keypress", function(e) {
         if (e.key === "Enter") { e.preventDefault(); document.getElementById("sendBtn").click(); }
     });
+
+    function startComparison() {
+    fetch("/comparison/create", { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+            window.location.href = `/comparison/${data.comparison_id}`;
+        });
+}
+
+</script>
+
+</body>
+</html> -->
+
+<!-- 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Chatbot & Comparator</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* --- SIDEBAR --- */
+        .sidebar { width: 260px; background: #2c3e50; color: white; display: flex; flex-direction: column; padding: 20px; transition: margin-left 0.3s ease; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .sidebar.hidden { margin-left: -300px; }
+        .sidebar h3 { margin-top: 0; font-size: 1.1em; color: #bdc3c7; border-bottom: 1px solid #34495e; padding-bottom: 10px; display: flex; justify-content: space-between; }
+        .toggle-btn { background: none; border: none; color: #bdc3c7; cursor: pointer; font-size: 1.2em; }
+        
+        .history-list { flex-grow: 1; overflow-y: auto; list-style: none; padding: 0; margin: 15px 0; }
+        .history-item { padding: 10px; cursor: pointer; border-radius: 6px; margin-bottom: 8px; font-size: 0.95em; color: #ecf0f1; transition: background 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item:hover { background: #34495e; }
+        .history-item.active { background: #007bff; color: white; font-weight: 600; }
+
+        /* --- MAIN AREA --- */
+        .main { flex-grow: 1; display: flex; justify-content: center; align-items: center; position: relative; }
+        .menu-btn { position: absolute; top: 20px; left: 20px; padding: 10px; cursor: pointer; border:none; background: #ddd; border-radius: 5px; }
+
+        /* CHAT CARD */
+        .chat-card { background: white; width: 600px; height: 85vh; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); display: flex; flex-direction: column; padding: 25px; position: relative; }
+        .card-header { text-align: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .card-header h2 { margin: 0; font-size: 1.6em; color: #333; }
+        
+        .btn-group { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
+        .action-btn { background: #007bff; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 0.9em; font-weight: 600; }
+        .action-btn:hover { background: #0056b3; }
+
+        .chat-box { flex-grow: 1; overflow-y: auto; border: 1px solid #f0f0f0; border-radius: 8px; padding: 15px; background: #fafafa; display: flex; flex-direction: column; gap: 12px; margin-bottom: 15px; }
+        
+        .input-group { display: flex; gap: 10px; }
+        input[type="text"] { flex-grow: 1; padding: 12px; border: 1px solid #ddd; border-radius: 6px; outline: none; }
+        .send-btn { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .send-btn:disabled { background: #ccc; }
+
+        .msg { padding: 10px 15px; border-radius: 12px; max-width: 85%; line-height: 1.5; font-size: 14px; }
+        .You { background: #007bff; color: white; align-self: flex-end; text-align: right; border-bottom-right-radius: 2px; }
+        .Bot { background: #e9ecef; color: #333; align-self: flex-start; text-align: left; border-bottom-left-radius: 2px; }
+        .Bot strong { font-weight: 600; }
+
+        /* --- COMPARISON MODAL STYLES --- */
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background-color: #fefefe; padding: 25px; border-radius: 12px; width: 700px; max-height: 90vh; overflow-y: auto; box-shadow: 0 5px 15px rgba(0,0,0,0.3); position: relative; display: flex; flex-direction: column; gap: 15px; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #aaa; }
+        .close-btn:hover { color: #000; }
+        #chartContainer { width: 100%; height: 350px; margin-top: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar" id="sidebar">
+        <h3>
+            <span>History</span> 
+            <button class="toggle-btn" onclick="toggleSidebar()">✖</button>
+        </h3>
+        <ul id="historyList" class="history-list"></ul>
+    </div>
+
+    <div class="main">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+
+        <div class="chat-card">
+            <div class="card-header">
+                 <h2 id="headerTitle">Resume Chatbot</h2>
+                 <div class="btn-group">
+                     <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect()">
+                     <button class="action-btn" onclick="document.getElementById('fileInput').click()">Upload a Resume</button>
+                     <button class="action-btn" style="background:#444" onclick="toggleModal(true)">Compare Candidates</button>
+                 </div>
+            </div>
+
+            <div id="chat" class="chat-box"></div>
+
+            <div class="input-group">
+                <input type="text" id="questionInput" placeholder="Ask a question..." disabled>
+                <button id="sendBtn" class="send-btn" onclick="askQuestion()" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="compareModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="toggleModal(false)">&times;</span>
+            <h2>Compare Candidates</h2>
+            <p>Select multiple resumes to generate a side-by-side analysis.</p>
+            
+            <input type="file" id="compareInput" multiple style="padding: 10px; border: 1px dashed #ccc;">
+            <button class="action-btn" onclick="runComparison()">Analyze & Graph</button>
+            
+            <div id="chartContainer" style="
+    display:none;
+    height:320px;
+    width:100%;
+    justify-content:center;
+    align-items:center;
+">
+    <canvas id="comparisonChart" style="max-width: 600px; width: 100%;"></canvas>
+</div>
+
+
+            
+            <div id="compareAnalysis" style="background:#f9f9f9; padding:10px; border-radius:5px; margin-top:10px;"></div>
+        </div>
+    </div>
+
+<script>
+    var currentResumeId = null;
+    var activeComparisonIds = [];
+    var isComparisonMode = false;
+
+    window.onload = loadHistory;
+
+    function toggleSidebar() {
+        document.getElementById("sidebar").classList.toggle("hidden");
+    }
+
+    function toggleModal(show) {
+        document.getElementById("compareModal").style.display = show ? "flex" : "none";
+    }
+
+    function loadHistory() {
+        fetch("/history")
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById("historyList");
+                list.innerHTML = "";
+                data.forEach(item => {
+                    const li = document.createElement("li");
+                    li.className = "history-item";
+                    li.id = "hist-" + item.id;
+                    li.innerText = item.title;
+                    li.onclick = () => switchResume(item.id, item.title, false);
+                    if (item.id === currentResumeId) li.classList.add("active");
+                    list.appendChild(li);
+                });
+            });
+    }
+
+    function handleFileSelect() {
+        const fileInput = document.getElementById('fileInput');
+        if (!fileInput.files.length) return;
+
+        const formData = new FormData();
+        formData.append("file", fileInput.files[0]);
+
+        const btn = document.querySelector(".action-btn");
+        const originalText = btn.innerText;
+        btn.innerText = "Uploading...";
+        btn.disabled = true;
+
+        fetch("/upload", { method: "POST", body: formData })
+            .then(r => r.json())
+            .then(data => {
+                Swal.fire({ icon: 'success', title: 'Uploaded!', text: 'Resume ready.', timer: 1500, showConfirmButton: false });
+                loadHistory();
+                switchResume(data.resume_id, data.title, true);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            })
+            .catch(() => {
+                Swal.fire({ icon: 'error', title: 'Error', text: 'Upload failed.' });
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
+    }
+
+    function switchResume(id, title, isNew) {
+        currentResumeId = id;
+        document.getElementById("headerTitle").innerText = title;
+        document.getElementById("chat").innerHTML = "";
+        document.getElementById("questionInput").disabled = false;
+        document.getElementById("sendBtn").disabled = false;
+
+        addMessage("Bot", isNew ? `**${title}** uploaded.` : `Loaded **${title}**.`);
+    }
+
+    function askQuestion() {
+        const qInput = document.getElementById("questionInput");
+        const q = qInput.value.trim();
+        if (!q) return;
+
+        addMessage("You", q);
+        qInput.value = "";
+
+        fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: q, resume_id: currentResumeId })
+        })
+        .then(r => r.json())
+        .then(data => addMessage("Bot", data.answer));
+    }
+
+    function addMessage(sender, text) {
+        const chatDiv = document.getElementById("chat");
+        const msg = document.createElement("div");
+        msg.className = "msg " + sender;
+        msg.innerHTML = marked.parse(text);
+        chatDiv.appendChild(msg);
+        chatDiv.scrollTop = chatDiv.scrollHeight;
+    }
+
+    document.getElementById("questionInput").addEventListener("keypress", function(e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            document.getElementById("sendBtn").click();
+        }
+    });
+</script>
+
+<script src="/static/main.js"></script>
+<script src="/static/comparison.js"></script>
+
+</body>
+</html> -->
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Chatbot</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .chat-container { width: 715px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); text-align: center; }
+        h2 { color: #333; margin-bottom: 20px; }
+        
+        /* Buttons */
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin: 5px; transition: 0.2s; }
+        .btn-blue { background: #007bff; color: white; }
+        .btn-dark { background: #343a40; color: white; text-decoration: none; display: inline-block; font-size: 13px; }
+        .btn:hover { opacity: 0.9; }
+
+        /* Chat Box */
+        #chat-box { height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-top: 20px; background: #fafafa; border-radius: 8px; text-align: left; display: flex; flex-direction: column; gap: 10px; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 80%; font-size: 14px; }
+        .user { background: #007bff; color: white; align-self: flex-end; }
+        .bot { background: #e9ecef; color: #333; align-self: flex-start; }
+
+        /* Inputs */
+        input[type="text"] { width: 70%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; margin-top: 10px; outline: none; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <h2>Resume Chatbot</h2>
+    
+    <input type="file" id="singleFile" accept=".pdf" style="display:none" onchange="uploadSingleFile()">
+    <button class="btn btn-blue" onclick="document.getElementById('singleFile').click()">📂 Upload Resume</button>
+    <a href="/comparison" class="btn btn-dark">Go to Comparison Mode →</a>
+
+    <p id="statusMsg" style="font-size: 12px; color: green; height: 15px; margin-top: 5px;"></p>
+
+    <div id="chat-box"></div>
+
+    <div style="display:flex; justify-content:space-between;">
+        <input type="text" id="userQuery" placeholder="Ask a question..." onkeypress="handleEnter(event)">
+        <button class="btn btn-blue" onclick="askBot()">Send</button>
+    </div>
+</div>
+
+<script>
+    // 1. Upload Logic
+    async function uploadSingleFile() {
+        const fileInput = document.getElementById("singleFile");
+        const status = document.getElementById("statusMsg");
+
+        if (!fileInput.files.length) return;
+
+        const formData = new FormData();
+        // Crucial: The key 'resume' MUST match app.py: request.files['resume']
+        formData.append("resume", fileInput.files[0]);
+
+        status.innerText = "Uploading...";
+        status.style.color = "orange";
+
+        try {
+            const res = await fetch("/upload", { method: "POST", body: formData });
+            const data = await res.json();
+
+            if (res.ok) {
+                status.innerText = `✅ ${data.filename} uploaded!`; // Fixes 'undefined' error
+                status.style.color = "green";
+                addMsg("System", "Resume uploaded successfully. You can now ask questions.", "bot");
+            } else {
+                throw new Error(data.error || "Upload failed");
+            }
+        } catch (err) {
+            status.innerText = "❌ Upload Failed";
+            status.style.color = "red";
+            alert("Error: " + err.message);
+        }
+    }
+
+    // 2. Chat Logic
+    async function askBot() {
+        const input = document.getElementById("userQuery");
+        const text = input.value.trim();
+        if (!text) return;
+
+        addMsg("You", text, "user");
+        input.value = "";
+
+        try {
+            const res = await fetch("/ask", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ question: text })
+            });
+            const data = await res.json();
+            addMsg("Bot", data.answer, "bot");
+        } catch (err) {
+            addMsg("Bot", "Error connecting to server.", "bot");
+        }
+    }
+
+    function addMsg(sender, text, type) {
+        const box = document.getElementById("chat-box");
+        const div = document.createElement("div");
+        div.className = `msg ${type}`;
+        div.innerText = text; // Just text, no "You:" prefix for cleaner look
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function handleEnter(e) {
+        if (e.key === "Enter") askBot();
+    }
 </script>
 
 </body>

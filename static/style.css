@@ -15,5 +15,48 @@ body {
   margin: 8px 0;
 }
 
-.user { text-align: right; color: #0066ff; }
-.bot  { text-align: left;  color: #333; }
+.user { text-align: right; color: #dee2e7; }
+.bot  { text-align: left;  color: #0f0f0f; }
+
+/* Update these in your style tag */
+.chat-history, .input-container {
+    display: none; /* Hidden at start */
+}
+
+.chat-history.active, .input-container.active {
+    display: flex; /* Visible after upload */
+}
+
+.analytics-section {
+    display: none; /* Analytics hidden by default */
+    width: 40%;
+    /* ... existing styles ... */
+}
+
+.analytics-section.active {
+    display: flex; /* Only visible when data is present */
+}
+.suggestions-grid {
+    display: flex;
+    flex-wrap: wrap; /* Wraps to new line if too many chips */
+    gap: 8px;
+    padding: 10px 20px;
+    background: #fff; /* Match your container background */
+}
+
+.suggestion-chip {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px; /* Pill shape */
+    padding: 6px 14px;
+    font-size: 13px;
+    color: #2563eb;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+
+.suggestion-chip:hover {
+    background: #e2e8f0;
+    border-color: #cbd5e1;
+}
