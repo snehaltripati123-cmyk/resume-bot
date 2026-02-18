@@ -542,6 +542,8 @@ from flask import Flask, request, jsonify, render_template
 from PyPDF2 import PdfReader
 from groq import Groq
 from dotenv import load_dotenv
+from ats_engine import hybrid_ats_score
+
 
 load_dotenv()
 app = Flask(__name__)
@@ -724,6 +726,23 @@ def get_smart_suggestions(cid):
         return jsonify(json.loads(raw))
     except:
         return jsonify({"suggestions": ["Compare technical skills", "Experience summary", "Education match", "Role fit"]})
+
+@app.route("/ats-score", methods=["POST"])
+def ats_score():
+    data = request.json
+    job_description = data.get("job_description")
+
+    if not CURRENT_RESUME["text"]:
+        return jsonify({"error": "Please upload a resume first."}), 400
+
+    if not job_description:
+        return jsonify({"error": "Job description is required."}), 400
+
+    result = hybrid_ats_score(
+        CURRENT_RESUME["text"],
+        job_description
+    )
+    return jsonify(result)
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

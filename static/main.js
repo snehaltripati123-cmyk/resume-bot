@@ -1,201 +1,348 @@
-// // --- GLOBAL STATE ---
-// var currentResumeId = null;       // For single-resume chat
-// var activeComparisonIds = [];     // For multi-resume chat
-// var isComparisonMode = false;     // Toggle for logic switching
+  let resumeUploaded = false;
+  let modalResumeUploaded = false;
 
-// // --- 1. SINGLE RESUME UPLOAD (Your main js code updated) ---
-// function upload() {
-//     const fileInput = document.getElementById('fileInput'); // Use your actual ID
-//     const status = document.getElementById("upload-status") || { innerText: "" };
+  // Upload resume for chatbot
+  async function handleUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
 
-//     if (!fileInput.files.length) {
-//         Swal.fire('Error', 'Please select a file first!', 'error');
-//         return;
-//     }
+    const zone = document.getElementById('uploadZone');
+    const content = document.getElementById('uploadContent');
+    const success = document.getElementById('fileSuccess');
+    const fileName = document.getElementById('uploadedFileName');
 
-//     const formData = new FormData();
-//     formData.append("file", fileInput.files[0]);
-//     status.innerText = "Processing...";
+    const formData = new FormData();
+    formData.append('resume', file);
 
-//     fetch("/upload", { method: "POST", body: formData })
-//     .then(r => r.json())
-//     .then(data => {
-//         if (data.error) {
-//             status.innerText = "Error: " + data.error;
-//         } else {
-//             // Enter Single Chat Mode
-//             isComparisonMode = false;
-//             currentResumeId = data.resume_id;
-            
-//             // UI Updates
-//             status.innerText = "✅ Ready!";
-//             document.getElementById("headerTitle").innerText = data.title;
-//             document.getElementById("chat").innerHTML = ""; 
-//             addMessage("Bot", `**${data.title}** is ready. What would you like to know?`);
-            
-//             // Enable Input
-//             document.getElementById("questionInput").disabled = false;
-//             document.getElementById("sendBtn").disabled = false;
-//             loadHistory(); // Refresh sidebar
-//         }
-//     });
-// }
+    try {
+      const res = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
 
-// // --- 2. MULTI-RESUME "COMPARE" LOGIC ---
-// async function runComparison() {
-//     const fileInput = document.getElementById('compareInput');
-//     const files = fileInput.files;
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
 
-//     if (files.length < 2) {
-//         Swal.fire('Info', 'Select at least 2 resumes to compare.', 'info');
-//         return;
-//     }
+      zone.classList.add('has-file');
+      content.style.display = 'none';
+      success.classList.add('show');
+      fileName.textContent = file.name;
+      resumeUploaded = true;
 
-//     // Enter Comparison Mode
-//     activeComparisonIds = [];
-//     isComparisonMode = true;
-    
-//     // Upload all files and collect IDs
-//     for (let file of files) {
-//         const formData = new FormData();
-//         formData.append("file", file);
-//         const r = await fetch("/upload", { method: "POST", body: formData });
-//         const data = await r.json();
-//         activeComparisonIds.push(data.resume_id);
-//     }
+      addMessage('ai', `✓ Got it! I've loaded **${file.name}**. What would you like to know?`);
+      document.getElementById('emptyState').style.display = 'none';
 
-//     // UI Updates
-//     toggleModal(false);
-//     document.getElementById("headerTitle").innerText = "Comparing " + files.length + " Candidates";
-//     document.getElementById("chat").innerHTML = "";
-//     addMessage("Bot", "I have processed all resumes. You can now ask me to **compare skills**, **rank them**, or **generate a chart**!");
-    
-//     document.getElementById("questionInput").disabled = false;
-//     document.getElementById("sendBtn").disabled = false;
-// }
+    } catch(e) {
+      console.error(e);
+    }
+  }
 
-// // --- 3. THE SMART CHAT FUNCTION ---
-// function askQuestion() {
-//     const qInput = document.getElementById("questionInput");
-//     const q = qInput.value.trim();
-//     if (!q) return;
+  // Modal resume upload
+  async function handleModalUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
 
-//     addMessage("You", q);
-//     qInput.value = "";
+    const zone = document.getElementById('modalUploadZone');
+    const label = document.getElementById('modalUploadLabel');
+    const icon = document.getElementById('modalUploadIcon');
+    const check = document.getElementById('modalFileCheck');
 
-//     // Payload chooses between single ID or the List of comparison IDs
-//     const payload = {
-//         question: q,
-//         resume_id: isComparisonMode ? null : currentResumeId,
-//         resume_ids: isComparisonMode ? activeComparisonIds : []
-//     };
+    const formData = new FormData();
+    formData.append('resume', file);
 
-//     fetch("/ask", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify(payload)
-//     })
-//     .then(r => r.json())
-//     .then(data => {
-//         // Here we handle the DYNAMIC CHART if the AI provides one
-//         addMessage("Bot", data.answer, data.chart || null);
-//     });
-// }
+    try {
+      const res = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
 
-// // --- 4. DYNAMIC MESSAGE & CHART RENDERER ---
-// function addMessage(sender, text, chartConfig = null) {
-//     const chatDiv = document.getElementById("chat");
-//     const msgDiv = document.createElement("div");
-//     msgDiv.className = "msg " + sender;
-    
-//     // Render text with Markdown
-//     msgDiv.innerHTML = `<div>${marked.parse(text)}</div>`;
+      if (!data.error) {
+        zone.classList.add('has-file');
+        label.textContent = file.name;
+        icon.textContent = '📄';
+        check.style.display = 'flex';
+        modalResumeUploaded = true;
+      }
+    } catch(e) { console.error(e); }
+  }
 
-//     // If AI sent chart data, inject a canvas
-//     if (chartConfig) {
-//         const canvasId = "chart-" + Date.now();
-//         msgDiv.innerHTML += `<div style="height:250px; margin-top:10px;"><canvas id="${canvasId}"></canvas></div>`;
-//         chatDiv.appendChild(msgDiv); // Must append before creating Chart
-        
-//         new Chart(document.getElementById(canvasId), {
-//             type: chartConfig.type || 'bar',
-//             data: {
-//                 labels: chartConfig.labels,
-//                 datasets: chartConfig.datasets
-//             },
-//             options: { responsive: true, maintainAspectRatio: false }
-//         });
-//     } else {
-//         chatDiv.appendChild(msgDiv);
-//     }
-
-//     chatDiv.scrollTop = chatDiv.scrollHeight;
-// }
-// function toggleModal(show) {
-//     const modal = document.getElementById("compareModal");
-//     modal.style.display = show ? "flex" : "none";
-// }
-
-// window.toggleModal = toggleModal;
-
-// static/js/main.js
-
-// static/js/main.js
-
-function uploadResume() {
-    let input = document.getElementById("resumeInput");
-    // Handle case where ID might differ in your HTML
-    if (!input) input = document.querySelector('input[type="file"]');
-    
-    if (!input || !input.files.length) return alert("Please select a file first");
-
-    let formData = new FormData();
-    formData.append("resume", input.files[0]);
-
-    // Use a helper if available, or just console log
-    if(typeof addMsg === "function") addMsg("System", "Uploading...", "bot");
-
-    fetch("/upload", {
-        method: "POST",
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        if(data.error) {
-            alert("Error: " + data.error);
-        } else {
-            // FIX: This line fixes the "undefined uploaded" message
-            let fileName = data.filename || "Resume";
-            
-            // Update the UI text if the element exists
-            let statusDiv = document.querySelector(".upload-status") || document.getElementById("uploadStatus"); 
-            if(statusDiv) statusDiv.innerText = fileName + " uploaded.";
-            
-            // Also notify in chat
-            if(typeof addMsg === "function") addMsg("System", fileName + " uploaded successfully!", "bot");
-        }
-    })
-    .catch(err => console.error("Upload failed", err));
-}
-
-function askQuestion() {
-    let input = document.getElementById("question");
-    if (!input) input = document.querySelector('input[type="text"]');
-    
-    let q = input.value;
+  async function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const q = input.value.trim();
     if (!q) return;
 
-    if(typeof addMsg === "function") addMsg("You", q, "user");
-    input.value = "";
+    document.getElementById('emptyState').style.display = 'none';
+    addMessage('user', q);
+    input.value = '';
 
-    fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+    const typingEl = addTyping();
+
+    try {
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: q })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if(typeof addMsg === "function") addMsg("Bot", data.answer, "bot");
-    })
-    .catch(err => console.error("Chat error", err));
-}
+      });
+      const data = await res.json();
+      typingEl.remove();
+      addMessage('ai', data.answer || 'Sorry, something went wrong.');
+    } catch(e) {
+      typingEl.remove();
+      addMessage('ai', 'Connection error. Please check your server.');
+    }
+  }
+
+  function askQuestion(q) {
+    document.getElementById('chatInput').value = q;
+    sendMessage();
+  }
+
+  function addMessage(type, text) {
+    const chat = document.getElementById('chatSection');
+    const div = document.createElement('div');
+    div.className = `message ${type}`;
+
+    const avatar = `<div class="avatar ${type === 'ai' ? 'ai' : 'user-av'}">${type === 'ai' ? '✦' : 'U'}</div>`;
+    const bubble = `<div class="bubble">${text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>`;
+
+    div.innerHTML = type === 'ai' ? avatar + bubble : bubble + avatar;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+  function addTyping() {
+    const chat = document.getElementById('chatSection');
+    const div = document.createElement('div');
+    div.className = 'message ai';
+    div.innerHTML = `
+      <div class="avatar ai">✦</div>
+      <div class="bubble typing">
+        <span></span><span></span><span></span>
+      </div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+  function openModal() { document.getElementById('modalOverlay').classList.add('open'); }
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.getElementById('scoreResult').classList.remove('show');
+  }
+
+  async function checkATS() {
+    const jd = document.getElementById('jdInput').value.trim();
+    if (!jd) { alert('Please paste a job description.'); return; }
+
+    const btn = document.getElementById('checkBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<div class="spinner"></div>';
+
+    try {
+      const res = await fetch('/ats-score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_description: jd })
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+
+      displayScore(data);
+    } catch(e) {
+      alert('Error connecting to server.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<span>Check ATS Score</span>';
+    }
+  }
+
+  function displayScore(data) {
+    const score = data['ATS Score'] || 0;
+    const matched = data['Matched Skills'] || [];
+    const missing = data['Missing Skills'] || [];
+    const summary = data['Summary'] || '';
+
+    // Show result
+    document.getElementById('scoreResult').classList.add('show');
+
+    // Score number
+    document.getElementById('scoreNumber').textContent = score + '%';
+
+    // Sub scores
+    document.getElementById('skillScoreVal').textContent = (data['Skill Match Score'] || 0) + '%';
+    document.getElementById('semScoreVal').textContent = (data['Semantic Score'] || 0) + '%';
+    document.getElementById('expScoreVal').textContent = (data['Experience Score'] || 0) + '%';
+
+    // Ring color
+    const ring = document.getElementById('ringFill');
+    const scoreNum = document.getElementById('scoreNumber');
+    if (score >= 70) { ring.style.stroke = '#22d3a5'; scoreNum.style.color = '#22d3a5'; }
+    else if (score >= 50) { ring.style.stroke = '#f59e0b'; scoreNum.style.color = '#f59e0b'; }
+    else { ring.style.stroke = '#ff5f7e'; scoreNum.style.color = '#ff5f7e'; }
+
+    // Animate ring
+    const circumference = 2 * Math.PI * 54;
+    const offset = circumference - (score / 100) * circumference;
+    setTimeout(() => { ring.style.strokeDashoffset = offset; }, 100);
+
+    // Chips
+    const matchedEl = document.getElementById('matchedChips');
+    const missingEl = document.getElementById('missingChips');
+    matchedEl.innerHTML = matched.map(s => `<span class="chip green">${s}</span>`).join('');
+    missingEl.innerHTML = missing.map(s => `<span class="chip red">${s}</span>`).join('');
+
+    // Summary
+    if (summary) {
+      const sumBox = document.getElementById('summaryBox');
+      sumBox.textContent = summary;
+      sumBox.style.display = 'block';
+    }
+
+    document.querySelector('.modal').scrollTop = 9999;
+  }
+
+// comparison code js
+  document.getElementById("compareBtn").addEventListener("click", function(e) {
+    e.preventDefault();
+
+    // Hide main content
+    document.querySelector("main").style.display = "none";
+
+    // Show comparison section
+    document.getElementById("comparisonPage").style.display = "block";
+});
+
+// ======================== comparison code ===========================
+  let comparisonId = null;
+  let candidates = [];
+
+  async function handleMultiUpload(input) {
+    const files = Array.from(input.files);
+    if (!files.length) return;
+
+    // Create session if needed
+    if (!comparisonId) {
+      const res = await fetch('/comparison/create', { method: 'POST' });
+      const data = await res.json();
+      comparisonId = data.comparison_id;
+    }
+
+    const formData = new FormData();
+    files.forEach(f => formData.append('files[]', f));
+
+    try {
+      const res = await fetch(`/comparison/${comparisonId}/upload`, { method: 'POST', body: formData });
+      const data = await res.json();
+
+      files.forEach(f => {
+        if (!candidates.find(c => c.name === f.name)) {
+          candidates.push({ name: f.name });
+          addCandidateCard(f.name);
+        }
+      });
+
+      if (candidates.length > 0) {
+        document.getElementById('emptyChat').style.display = 'none';
+        document.getElementById('chatPills').style.display = 'flex';
+        document.getElementById('suggestionSection').style.display = 'block';
+        loadSuggestions();
+      }
+
+    } catch(e) { console.error(e); }
+  }
+
+  function addCandidateCard(name) {
+    const grid = document.getElementById('candidatesGrid');
+    const card = document.createElement('div');
+    card.className = 'candidate-card';
+    card.id = `card-${name}`;
+    card.innerHTML = `
+      <div class="candidate-icon">📄</div>
+      <div class="candidate-info">
+        <div class="candidate-name">${name}</div>
+        <div class="candidate-status">
+          <div class="status-dot"></div> Ready
+        </div>
+      </div>
+      <button class="remove-btn" onclick="removeCandidate('${name}')">×</button>
+    `;
+    grid.appendChild(card);
+  }
+
+  function removeCandidate(name) {
+    candidates = candidates.filter(c => c.name !== name);
+    const el = document.getElementById(`card-${name}`);
+    if (el) el.remove();
+  }
+
+  async function loadSuggestions() {
+    if (!comparisonId) return;
+    try {
+      const res = await fetch(`/comparison/${comparisonId}/suggestions`);
+      const data = await res.json();
+      if (data.suggestions && data.suggestions.length > 0) {
+        const pills = document.getElementById('chatPills');
+        pills.innerHTML = data.suggestions.map(s =>
+          `<span class="chat-pill" onclick="sendComparison('${s}')">${s}</span>`
+        ).join('');
+      }
+    } catch(e) {}
+  }
+
+  async function sendComparison(msg) {
+    const input = document.getElementById('compInput');
+    const message = msg || input.value.trim();
+    if (!message) return;
+    if (!comparisonId) { alert('Please upload resumes first.'); return; }
+
+    document.getElementById('emptyChat').style.display = 'none';
+    addMessage('user', message);
+    if (!msg) input.value = '';
+
+    const typing = addTyping();
+
+    try {
+      const res = await fetch(`/comparison/${comparisonId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+      const data = await res.json();
+      typing.remove();
+      addMessage('ai', data.response || 'Sorry, something went wrong.');
+    } catch(e) {
+      typing.remove();
+      addMessage('ai', 'Connection error. Please check your server.');
+    }
+  }
+
+  function addMessage(type, text) {
+    const chat = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = `message ${type}`;
+    const avatar = `<div class="avatar ${type === 'ai' ? 'ai' : 'user-av'}">${type === 'ai' ? '✦' : 'U'}</div>`;
+    const bubble = `<div class="bubble">${text}</div>`;
+    div.innerHTML = type === 'ai' ? avatar + bubble : bubble + avatar;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+  function addTyping() {
+    const chat = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'message ai';
+    div.innerHTML = `
+      <div class="avatar ai">✦</div>
+      <div class="bubble typing">
+        <span></span><span></span><span></span>
+      </div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+    return div;
+  }
+
+
