@@ -344,5 +344,3 @@
     chat.scrollTop = chat.scrollHeight;
     return div;
   }
-
-

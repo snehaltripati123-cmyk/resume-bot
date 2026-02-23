@@ -1,707 +1,4 @@
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Resume Intelligence</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --chat-bg: #ffffff; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
-        
-        /* Header & Controls */
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        h2 { margin: 0; color: #1e293b; }
-        .controls { display: flex; gap: 10px; }
-        
-        /* Main Layout */
-        .main-container { display: flex; gap: 20px; flex: 1; overflow: hidden; }
-        
-        /* Left: Chat Section */
-        .chat-section { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .chat-history { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .chat-input-area { padding: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; }
-        button { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: 0.2s; }
-        button:hover { opacity: 0.9; }
-        button.secondary { background: #64748b; }
-        
-        /* Messages */
-        .msg { padding: 12px 16px; border-radius: 12px; max-width: 80%; line-height: 1.5; }
-        .user-msg { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .bot-msg { background: #f1f5f9; color: #334155; align-self: flex-start; border-bottom-left-radius: 2px; }
-
-        /* Right: Analytics Section (Togglable) */
-        .analytics-section { width: 40%; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); display: none; flex-direction: column; }
-        .analytics-section.active { display: flex; }
-        .chart-container { flex: 1; position: relative; min-height: 0; }
-        
-        /* Upload status */
-        #uploadStatus { font-size: 0.9em; color: green; margin-right: 10px; display: none;}
-    </style>
-</head>
-<body>
-
-<header>
-    <h2>Multi-Resume Comparison</h2>
-    <div class="controls">
-        <span id="uploadStatus">Files Uploaded!</span>
-        <button class="secondary" onclick="toggleAnalytics()">📊 Toggle Analytics</button>
-        <button onclick="document.getElementById('fileInput').click()">+ Upload Resumes</button>
-    </div>
-</header>
-
-<input type="file" id="fileInput" multiple style="display:none" onchange="handleUpload(this)">
-
-<div class="main-container">
-    <div class="chat-section">
-        <div class="chat-history" id="chatHistory">
-            <div class="msg bot-msg">
-                Hello! Upload resumes and I can compare them. <br>
-                Try asking: <i>"Compare their Python experience"</i> or <i>"Show me a graph of their education scores"</i>.
-            </div>
-        </div>
-        <div class="chat-input-area">
-            <input type="text" id="userInput" placeholder="Ask for a comparison or specific chart..." onkeypress="if(event.key==='Enter') sendMessage()">
-            <button onclick="sendMessage()">Send</button>
-        </div>
-    </div>
-
-    <div class="analytics-section" id="analyticsPanel">
-        <div style="display:flex; justify-content:space-between;">
-            <h3>Live Analytics</h3>
-            <button style="background:none; color:#999; padding:0;" onclick="toggleAnalytics()">✖</button>
-        </div>
-        <p id="chartTitle" style="color: #64748b; font-size: 0.9em;">Ask the chat to generate a graph...</p>
-        <div class="chart-container">
-            <canvas id="dynamicChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Get ID from URL or create a default one
-    const sessionId = window.location.pathname.split("/").pop() || "session_1";
-    let myChart = null;
-
-    // Ensure session exists on load
-    fetch('/comparison/create', { method: 'POST' });
-
-    // 1. Toggle Functionality
-    function toggleAnalytics() {
-        const panel = document.getElementById('analyticsPanel');
-        panel.classList.toggle('active');
-        // Resize chart if it becomes visible
-        if (panel.classList.contains('active') && myChart) {
-            myChart.resize();
-        }
-    }
-
-    // 2. Chat & Dynamic Graph Logic
-    async function sendMessage() {
-        const input = document.getElementById('userInput');
-        const text = input.value.trim();
-        if (!text) return;
-
-        addMsg(text, 'user');
-        input.value = '';
-        addMsg("Thinking...", 'bot', true); // Loading state
-
-        try {
-            const res = await fetch(`/comparison/${sessionId}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text })
-            });
-            const data = await res.json();
-
-            // Remove loading msg
-            const loading = document.querySelector('.loading-msg');
-            if(loading) loading.remove();
-
-            // Display text response
-            addMsg(data.response, 'bot');
-
-            // 3. CHECK FOR DYNAMIC CHART DATA
-            if (data.graph_data) {
-                renderChart(data.graph_data);
-                // Auto-open the panel if a graph is returned
-                const panel = document.getElementById('analyticsPanel');
-                if (!panel.classList.contains('active')) panel.classList.add('active');
-            }
-
-        } catch (e) {
-            const loading = document.querySelector('.loading-msg');
-            if(loading) loading.remove();
-            addMsg("Error: " + e.message, 'bot');
-        }
-    }
-
-    function addMsg(text, sender, isLoading=false) {
-        const history = document.getElementById('chatHistory');
-        const div = document.createElement('div');
-        div.className = `msg ${sender}-msg ${isLoading ? 'loading-msg' : ''}`;
-        div.innerHTML = text.replace(/\n/g, "<br>");
-        history.appendChild(div);
-        history.scrollTop = history.scrollHeight;
-    }
-
-    // 4. renderChart: Handles ANY chart type sent by backend
-    function renderChart(chartConfig) {
-        const ctx = document.getElementById('dynamicChart');
-        const titleEl = document.getElementById('chartTitle');
-        
-        if (myChart) myChart.destroy();
-
-        // Update Title if provided
-        if (chartConfig.title) titleEl.innerText = chartConfig.title;
-
-        // Create new Chart.js instance with data from backend
-        myChart = new Chart(ctx, {
-            type: chartConfig.type || 'bar', 
-            data: {
-                labels: chartConfig.labels,
-                datasets: [{
-                    label: chartConfig.label || 'Data',
-                    data: chartConfig.data,
-                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true }
-                }
-            }
-        });
-    }
-
-    // Upload Handler
-    async function handleUpload(input) {
-        if (!input.files.length) return;
-        const formData = new FormData();
-        for (const file of input.files) formData.append('files[]', file);
-        
-        addMsg("Uploading files...", 'bot');
-        await fetch(`/comparison/${sessionId}/upload`, { method: 'POST', body: formData });
-        
-        document.getElementById('uploadStatus').style.display = 'inline';
-        addMsg("Files uploaded! You can now ask comparison questions.", 'bot');
-    }
-</script>
-
-</body>
-</html> -->
 <!-- 
-#changes# -->
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Resume Intelligence</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root { --primary: #2563eb; --bg: #f1f5f9; --chat-bg: #ffffff; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
-        
-        /* Header */
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        h2 { margin: 0; color: #1e293b; font-size: 1.2rem; }
-        .controls { display: flex; gap: 10px; }
-        
-        /* Buttons */
-        button { padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.9rem; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: #1d4ed8; }
-        .btn-secondary { background: #e2e8f0; color: #475569; }
-        .btn-secondary:hover { background: #cbd5e1; }
-        .btn-new { background: #10b981; color: white; } /* Green for New Chat */
-        .btn-new:hover { background: #059669; }
-
-        /* Main Layout */
-        .main-container { display: flex; gap: 20px; flex: 1; overflow: hidden; }
-        
-        /* Chat Section */
-        .chat-section { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .chat-history { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
-        .chat-input-area { padding: 20px; border-top: 1px solid #e2e8f0; display: flex; gap: 10px; background: white; border-radius: 0 0 12px 12px; }
-        input[type="text"] { flex: 1; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; outline: none; font-size: 1rem; }
-        
-        /* Messages */
-        .msg { padding: 12px 18px; border-radius: 12px; max-width: 80%; line-height: 1.6; font-size: 0.95rem; }
-        .user-msg { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-        .bot-msg { background: #f8fafc; color: #334155; align-self: flex-start; border: 1px solid #e2e8f0; border-bottom-left-radius: 2px; }
-
-        /* Analytics Panel */
-        .analytics-section { width: 45%; background: white; border-radius: 12px; padding: 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: none; flex-direction: column; }
-        .analytics-section.active { display: flex; }
-        .chart-wrapper { flex: 1; position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
-
-        /* TOAST NOTIFICATION (Pop-up) */
-        #toast {
-            visibility: hidden; min-width: 250px; background-color: #333; color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 1000; right: 30px; top: 30px; font-size: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s, top 0.3s;
-        }
-        #toast.show { visibility: visible; opacity: 1; top: 50px; }
-        #toast.success { background-color: #10b981; }
-        #toast.error { background-color: #ef4444; }
-    </style>
-</head>
-<body>
-
-<div id="toast">Notification</div>
-
-<header>
-    <h2>Resume Intelligence</h2>
-    <div class="controls">
-        <button class="btn-new" onclick="startNewChat()">✨ New Chat</button>
-        <button class="btn-secondary" onclick="toggleAnalytics()">📊 Analytics</button>
-        <button class="btn-primary" onclick="document.getElementById('fileInput').click()">+ Upload Resumes</button>
-    </div>
-</header>
-
-<input type="file" id="fileInput" multiple style="display:none" onchange="handleUpload(this)">
-
-<div class="main-container">
-    <div class="chat-section">
-        <div class="chat-history" id="chatHistory">
-            <div class="msg bot-msg">
-                <strong>Session Started.</strong><br>
-                Upload resumes to begin. I can generate Radar charts for skills, Bar charts for experience, or Pie charts for demographics.
-            </div>
-        </div>
-        <div class="chat-input-area">
-            <input type="text" id="userInput" placeholder="E.g. 'Show me a radar chart of their skills'" onkeypress="if(event.key==='Enter') sendMessage()">
-            <button class="btn-primary" onclick="sendMessage()">Send</button>
-        </div>
-    </div>
-
-    <div class="analytics-section" id="analyticsPanel">
-        <div style="display:flex; justify-content:space-between; margin-bottom: 10px;">
-            <h3 style="margin:0; color:#475569;">Live Analytics</h3>
-            <button style="background:none; color:#94a3b8; padding:0; border:none; cursor:pointer;" onclick="toggleAnalytics()">✖</button>
-        </div>
-        <p id="chartTitle" style="color: #64748b; font-size: 0.9em; margin-top:0;">Generated by AI Analysis</p>
-        <div class="chart-wrapper">
-            <canvas id="dynamicChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<script>
-    let sessionId = null;
-    let myChart = null;
-
-    // Initialize Session on Load
-    startNewChat();
-
-    // --- 1. NEW CHAT & SESSION LOGIC ---
-    async function startNewChat() {
-        // Clear UI
-        document.getElementById('chatHistory').innerHTML = `
-            <div class="msg bot-msg">
-                <strong>New Session Started.</strong><br>
-                Upload resumes to begin.
-            </div>`;
-        document.getElementById('analyticsPanel').classList.remove('active');
-        
-        // Fetch New Session ID
-        try {
-            const res = await fetch('/comparison/create', { method: 'POST' });
-            const data = await res.json();
-            sessionId = data.comparison_id;
-            showToast(`Session Started`, 'success');
-        } catch (e) {
-            showToast("Failed to start session", 'error');
-        }
-    }
-
-    // --- 2. POP-UP TOAST LOGIC ---
-    function showToast(message, type = 'success') {
-        const x = document.getElementById("toast");
-        x.innerText = message;
-        x.className = "show " + type;
-        setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
-    }
-
-    async function handleUpload(input) {
-        if (!input.files.length) return;
-        const formData = new FormData();
-        for (const file of input.files) formData.append('files[]', file);
-        
-        showToast("Uploading files...", 'success'); // Show popup instead of chat msg
-
-        try {
-            const res = await fetch(`/comparison/${sessionId}/upload`, { method: 'POST', body: formData });
-            const data = await res.json();
-            showToast(`${data.count} Resumes Uploaded!`, 'success');
-        } catch (e) {
-            showToast("Upload failed", 'error');
-        }
-        input.value = ""; // Reset input
-    }
-
-    // --- 3. SMART ANALYTICS LOGIC ---
-    async function sendMessage() {
-        const input = document.getElementById('userInput');
-        const text = input.value.trim();
-        if (!text) return;
-
-        addMsg(text, 'user');
-        input.value = '';
-
-        try {
-            const res = await fetch(`/comparison/${sessionId}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text })
-            });
-            const data = await res.json();
-
-            addMsg(data.response, 'bot');
-
-            // Handle Smart Charts
-            if (data.graph_data) {
-                renderSmartChart(data.graph_data);
-                document.getElementById('analyticsPanel').classList.add('active');
-            }
-        } catch (e) {
-            addMsg("Error: " + e.message, 'bot');
-        }
-    }
-
-    function addMsg(text, sender) {
-        const history = document.getElementById('chatHistory');
-        const div = document.createElement('div');
-        div.className = `msg ${sender}-msg`;
-        div.innerHTML = text.replace(/\n/g, "<br>");
-        history.appendChild(div);
-        history.scrollTop = history.scrollHeight;
-    }
-
-    function renderSmartChart(config) {
-        const ctx = document.getElementById('dynamicChart');
-        if (myChart) myChart.destroy();
-
-        document.getElementById('chartTitle').innerText = config.title || "Analysis";
-
-        // Chart.js Configuration
-        const chartType = config.type || 'bar';
-        
-        // Colors for datasets
-        const bgColors = ['rgba(37, 99, 235, 0.6)', 'rgba(16, 185, 129, 0.6)', 'rgba(245, 158, 11, 0.6)'];
-        const borderColors = ['#2563eb', '#10b981', '#f59e0b'];
-
-        // Map datasets to add styling
-        const datasets = config.datasets || [{ label: 'Data', data: config.data }];
-        const styledDatasets = datasets.map((ds, i) => ({
-            ...ds,
-            backgroundColor: bgColors[i % bgColors.length],
-            borderColor: borderColors[i % borderColors.length],
-            borderWidth: 2,
-            fill: chartType === 'radar' // Radar charts look better filled
-        }));
-
-        myChart = new Chart(ctx, {
-            type: chartType,
-            data: {
-                labels: config.labels,
-                datasets: styledDatasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    r: { beginAtZero: true }, // For Radar charts
-                    y: { beginAtZero: true }  // For Bar/Line charts
-                }
-            }
-        });
-    }
-
-    function toggleAnalytics() {
-        document.getElementById('analyticsPanel').classList.toggle('active');
-    }
-</script>
-
-</body>
-</html> -->
-
-
-
-
-<!-- <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Smart Resume Intelligence</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --chat-bg: #ffffff; }
-        body { font-family: 'Inter', 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; color: #1e293b; }
-        
-        /* HEADER */
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .logo { font-weight: 700; font-size: 1.2rem; color: #0f172a; display: flex; align-items: center; gap: 8px; }
-        .controls { display: flex; gap: 10px; }
-        
-        /* BUTTONS */
-        button { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; font-size: 0.9rem; }
-        .btn-primary { background: var(--primary); color: white; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2); }
-        .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
-        .btn-secondary { background: white; color: #475569; border: 1px solid #cbd5e1; }
-        .btn-secondary:hover { background: #f1f5f9; }
-        .btn-new { background: #10b981; color: white; }
-        .btn-new:hover { background: #059669; }
-
-        /* MAIN LAYOUT */
-        .main-container { display: flex; gap: 20px; flex: 1; overflow: hidden; position: relative; }
-        
-        /* CHAT SECTION */
-        .chat-section { flex: 1; display: flex; flex-direction: column; background: var(--chat-bg); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; position: relative; }
-        
-        /* WELCOME SCREEN (Empty State) */
-        #welcome-screen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: white; z-index: 10; text-align: center; padding: 20px;
-        }
-        #welcome-screen h1 { font-size: 2rem; margin-bottom: 10px; color: #1e293b; }
-        #welcome-screen p { color: #64748b; margin-bottom: 30px; font-size: 1.1rem; max-width: 500px; line-height: 1.5; }
-        .hero-upload-btn {
-            padding: 15px 30px; font-size: 1.1rem; border-radius: 12px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.3); display: flex; align-items: center; gap: 10px;
-        }
-        .hero-upload-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4); }
-
-        /* CHAT HISTORY */
-        .chat-history { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
-        
-        /* MODERN CHAT BUBBLES */
-        .msg { padding: 12px 18px; border-radius: 12px; max-width: 75%; line-height: 1.6; font-size: 0.95rem; position: relative; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .user-msg { 
-            background: var(--primary); color: white; align-self: flex-end; 
-            border-bottom-right-radius: 2px; box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2);
-        }
-        .bot-msg { 
-            background: #f1f5f9; color: #334155; align-self: flex-start; 
-            border-bottom-left-radius: 2px; border: 1px solid #e2e8f0; 
-        }
-
-        /* INPUT AREA */
-        .chat-input-area { padding: 20px; border-top: 1px solid #f1f5f9; display: flex; gap: 10px; background: white; }
-        input[type="text"] { flex: 1; padding: 14px; border: 1px solid #cbd5e1; border-radius: 10px; outline: none; font-size: 1rem; transition: border 0.2s; }
-        input[type="text"]:focus { border-color: var(--primary); }
-
-        /* ANALYTICS PANEL */
-        .analytics-section { width: 40%; background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); display: none; flex-direction: column; border-left: 1px solid #f1f5f9; }
-        .analytics-section.active { display: flex; }
-        .chart-wrapper { flex: 1; position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
-
-        /* CENTERED POP-UP TOAST */
-        #toast {
-            visibility: hidden; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            background: rgba(15, 23, 42, 0.9); color: white; padding: 20px 40px; border-radius: 12px;
-            text-align: center; font-size: 1.1rem; z-index: 1000; opacity: 0; transition: opacity 0.3s;
-            backdrop-filter: blur(5px); box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        #toast.show { visibility: visible; opacity: 1; }
-        
-        /* Utility */
-        .hidden { display: none !important; }
-    </style>
-</head>
-<body>
-
-<div id="toast">Notification</div>
-
-<header>
-    <div class="logo">
-        🤖 Resume Intelligence
-    </div>
-    <div class="controls">
-        <button class="btn-new" onclick="startNewChat()">✨ New Chat</button>
-        <button class="btn-secondary" onclick="toggleAnalytics()">📊 Analytics</button>
-    </div>
-</header>
-
-<input type="file" id="fileInput" multiple style="display:none" onchange="handleUpload(this)">
-
-<div class="main-container">
-    <div class="chat-section">
-        
-        <div id="welcome-screen">
-            <h1>Multi-Resume Analysis</h1>
-            <p>Upload candidate resumes to start comparing skills, experience, and education instantly.</p>
-            <button class="hero-upload-btn" onclick="document.getElementById('fileInput').click()">
-                📂 Upload Resumes to Begin
-            </button>
-        </div>
-
-        <div class="chat-history" id="chatHistory">
-            </div>
-
-        <div class="chat-input-area">
-            <input type="text" id="userInput" placeholder="Ask to compare candidates or visualize skills..." onkeypress="if(event.key==='Enter') sendMessage()">
-            <button class="btn-primary" onclick="sendMessage()">Send</button>
-        </div>
-    </div>
-
-    <div class="analytics-section" id="analyticsPanel">
-        <div style="display:flex; justify-content:space-between; margin-bottom: 15px;">
-            <h3 style="margin:0; color:#1e293b;">Live Analytics</h3>
-            <button style="background:none; color:#94a3b8; padding:0; font-size:1.2rem;" onclick="toggleAnalytics()">✖</button>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="dynamicChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<script>
-    let sessionId = null;
-    let myChart = null;
-
-    // Initialize
-    startNewChat();
-
-    // 1. SESSION MANAGEMENT
-    async function startNewChat() {
-        // Reset UI
-        document.getElementById('chatHistory').innerHTML = '';
-        document.getElementById('welcome-screen').classList.remove('hidden'); // Show Welcome Screen
-        document.getElementById('analyticsPanel').classList.remove('active');
-        
-        // Fetch New Session ID
-        try {
-            const res = await fetch('/comparison/create', { method: 'POST' });
-            const data = await res.json();
-            sessionId = data.comparison_id;
-            console.log("New Session:", sessionId);
-        } catch (e) {
-            console.error("Session failed", e);
-        }
-    }
-
-    // 2. CENTERED TOAST NOTIFICATION
-    function showToast(message) {
-        const x = document.getElementById("toast");
-        x.innerText = message;
-        x.className = "show";
-        setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
-    }
-
-    // 3. UPLOAD HANDLER
-    async function handleUpload(input) {
-        if (!input.files.length) return;
-        
-        showToast("Uploading Resumes..."); 
-
-        const formData = new FormData();
-        for (const file of input.files) formData.append('files[]', file);
-
-        try {
-            const res = await fetch(`/comparison/${sessionId}/upload`, { method: 'POST', body: formData });
-            const data = await res.json();
-            showToast(`✅ ${data.count} Resumes Uploaded!`);
-            
-            // Optional: Auto-start chat or wait for user?
-            // User requested upload only at start. We stay on welcome screen until they type.
-        } catch (e) {
-            showToast("❌ Upload Failed");
-        }
-        input.value = ""; 
-    }
-
-    // 4. CHAT LOGIC
-    async function sendMessage() {
-        const input = document.getElementById('userInput');
-        const text = input.value.trim();
-        if (!text) return;
-
-        // Hide Welcome Screen on first message
-        document.getElementById('welcome-screen').classList.add('hidden');
-
-        addMsg(text, 'user');
-        input.value = '';
-
-        try {
-            const res = await fetch(`/comparison/${sessionId}/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: text })
-            });
-            const data = await res.json();
-
-            addMsg(data.response, 'bot');
-
-            if (data.graph_data) {
-                renderSmartChart(data.graph_data);
-                document.getElementById('analyticsPanel').classList.add('active');
-            }
-        } catch (e) {
-            addMsg("Error: " + e.message, 'bot');
-        }
-    }
-
-    function addMsg(text, sender) {
-        const history = document.getElementById('chatHistory');
-        const div = document.createElement('div');
-        div.className = `msg ${sender}-msg`;
-        div.innerHTML = text.replace(/\n/g, "<br>");
-        history.appendChild(div);
-        history.scrollTop = history.scrollHeight;
-    }
-
-    // 5. CHART LOGIC
-    function renderSmartChart(config) {
-        const ctx = document.getElementById('dynamicChart');
-        if (myChart) myChart.destroy();
-
-        const chartType = config.type || 'bar';
-        const bgColors = ['rgba(37, 99, 235, 0.7)', 'rgba(16, 185, 129, 0.7)', 'rgba(245, 158, 11, 0.7)'];
-        const borderColors = ['#2563eb', '#10b981', '#f59e0b'];
-
-        const datasets = (config.datasets || []).map((ds, i) => ({
-            ...ds,
-            backgroundColor: bgColors[i % bgColors.length],
-            borderColor: borderColors[i % borderColors.length],
-            borderWidth: 2,
-            fill: chartType === 'radar'
-        }));
-
-        myChart = new Chart(ctx, {
-            type: chartType,
-            data: { labels: config.labels, datasets: datasets },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    title: { display: true, text: config.title || "Analysis" }
-                },
-                scales: {
-                    r: { beginAtZero: true, grid: { color: '#e2e8f0' } }, 
-                    y: { beginAtZero: true, grid: { color: '#f1f5f9' } },
-                    x: { grid: { display: false } }
-                }
-            }
-        });
-    }
-
-    function toggleAnalytics() {
-        document.getElementById('analyticsPanel').classList.toggle('active');
-    }
-</script>
-
-</body>
-</html> -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -713,7 +10,7 @@
         :root { --primary: #2563eb; --success: #10b981; --bg-light: #f8fafc; }
         body { font-family: 'Inter', sans-serif; background: var(--bg-light); margin: 0; padding: 20px; height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
 
-        /* WELCOME SCREEN (Initial State) */
+      
         #welcome-screen {
             position: fixed; inset: 0; background: white; z-index: 500;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -729,7 +26,6 @@
         }
         .hero-upload-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(37, 99, 235, 0.3); }
 
-        /* SUGGESTION CARDS */
         .suggestions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-width: 600px; width: 100%; }
         .card { 
             background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px; 
@@ -739,11 +35,11 @@
         .card b { display: block; color: var(--primary); margin-bottom: 4px; }
         .card span { font-size: 0.9rem; color: #64748b; }
 
-        /* DASHBOARD (Hidden at start) */
+    
         #dashboard-container { display: none; flex-direction: column; height: 100%; opacity: 0; transition: opacity 0.5s ease; }
         #dashboard-container.active { display: flex; opacity: 1; }
 
-        /* TOP NAVIGATION */
+    
         header { display: flex; justify-content: space-between; align-items: center; background: white; padding: 15px 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .nav-buttons { display: flex; gap: 12px; }
 
@@ -752,7 +48,7 @@
         .btn-analytics { background: #e2e8f0; color: #475569; }
         .btn-upload { background: var(--primary); color: white; }
 
-        /* CONTENT AREA */
+
         .content-area { display: flex; gap: 20px; flex: 1; overflow: hidden; }
         .chat-container { flex: 1; background: white; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         .chat-history { flex: 1; padding: 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
@@ -821,7 +117,7 @@
     let sessionId = null;
     let myChart = null;
 
-    // Start Session immediately
+
     fetch('/comparison/create', { method: 'POST' })
         .then(r => r.json()).then(data => sessionId = data.comparison_id);
 
@@ -847,7 +143,7 @@
             if (res.ok) {
                 const data = await res.json();
                 showToast(`✅ ${data.count} Resumes Uploaded!`);
-                // Force transition to active chat state
+         
                 document.getElementById('welcome-screen').classList.add('hidden');
                 document.getElementById('dashboard-container').classList.add('active');
                 fetchSmartSuggestions();
@@ -865,16 +161,16 @@
         const res = await fetch(`/comparison/${sessionId}/suggestions`);
         const data = await res.json();
         
-        container.innerHTML = ''; // Clear loading text
+        container.innerHTML = ''; 
         
         data.suggestions.forEach(q => {
             const btn = document.createElement('button');
-            btn.className = 'suggestion-chip'; // Style this as a small pill/card
+            btn.className = 'suggestion-chip';
             btn.innerText = q;
             btn.onclick = () => {
                 document.getElementById('userInput').value = q;
                 sendMessage();
-                container.innerHTML = ''; // Hide suggestions once one is clicked
+                container.innerHTML = ''; 
             };
             container.appendChild(btn);
         });
@@ -914,25 +210,23 @@
     function renderChart(config) {
     const ctx = document.getElementById('dynamicChart').getContext('2d');
     
-    // CRUCIAL: Destroy old chart instance to allow the new one to render
     if (window.myChart instanceof Chart) {
         window.myChart.destroy();
     }
     
-    // Ensure titles and labels are updated for the specific query
     document.getElementById('chartTitle').innerText = config.title || "Analysis Result";
 
     window.myChart = new Chart(ctx, {
         type: config.type || 'bar',
         data: {
-            labels: config.labels, // These should be candidate names or skills
+            labels: config.labels,
             datasets: config.datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             layout: {
-                padding: { left: 40, right: 80, top: 20, bottom: 60 } // Prevents label clipping
+                padding: { left: 40, right: 80, top: 20, bottom: 60 } 
             },
             plugins: {
                 legend: { display: true, position: 'top' }
@@ -942,4 +236,510 @@
 }
 </script>
 </body>
-</html>
+</html> -->
+
+<!-- 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Comparison - ResumeBot</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius: 16px;
+            --success: #059669;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* HEADER */
+        header {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 28px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .logo { display: flex; align-items: center; gap: 10px; }
+        .logo-icon { width: 36px; height: 36px; background: var(--primary); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; }
+        .logo-name { font-weight: 700; font-size: 0.95rem; }
+        .logo-sub  { font-size: 0.72rem; color: var(--text-muted); }
+
+        .back-btn {
+            display: flex; align-items: center; gap: 6px;
+            background: none; border: none; cursor: pointer;
+            font-size: 0.9rem; color: var(--text-muted); font-weight: 500;
+            text-decoration: none;
+            transition: color 0.15s;
+        }
+        .back-btn:hover { color: var(--text); }
+
+        .theme-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 7px; cursor: pointer; font-size: 15px; }
+
+        /* MAIN LAYOUT */
+        .main {
+            display: flex;
+            flex: 1;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        /* LEFT PANEL */
+        .left-panel {
+            width: 340px;
+            flex-shrink: 0;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            border-right: 1px solid var(--border);
+            background: var(--card-bg);
+        }
+
+        .section-title { font-weight: 700; font-size: 1rem; margin-bottom: 2px; }
+        .uploaded-count { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-muted); }
+        .count-icon { color: var(--primary); }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 32px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            background: var(--bg);
+        }
+        .upload-zone:hover { border-color: var(--primary); background: var(--primary-light); }
+        .upload-icon { font-size: 28px; margin-bottom: 10px; color: var(--text-muted); }
+        .upload-zone p { font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; }
+        .upload-zone b { color: var(--text); font-weight: 600; }
+
+        /* Candidate Cards */
+        .candidate-card {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 16px;
+        }
+        .candidate-icon { font-size: 22px; color: var(--primary); }
+        .candidate-info { flex: 1; min-width: 0; }
+        .candidate-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .candidate-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+        .candidate-score { font-size: 0.78rem; font-weight: 600; color: var(--primary); background: var(--primary-light); padding: 2px 8px; border-radius: 20px; }
+        .processed-badge { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: var(--success); margin-top: 3px; }
+
+        #candidatesGrid { display: flex; flex-direction: column; gap: 10px; }
+
+        /* RIGHT PANEL */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Chat input bar at top */
+        .chat-bar {
+            display: flex; gap: 10px; align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--card-bg);
+            flex-shrink: 0;
+        }
+        .chat-bar input {
+            flex: 1; padding: 11px 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px; font-family: inherit;
+            font-size: 0.92rem; outline: none;
+            background: var(--bg);
+        }
+        .chat-bar input:focus { border-color: var(--primary); background: white; }
+        .send-btn {
+            width: 42px; height: 42px; border-radius: 10px;
+            background: var(--primary); color: white;
+            border: none; cursor: pointer; font-size: 16px;
+            display: flex; align-items: center; justify-content: center;
+            transition: 0.15s;
+        }
+        .send-btn:hover { background: #1d4ed8; }
+
+        /* Charts area */
+        .charts-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .chart-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+        }
+        .chart-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+        .chart-wrapper { position: relative; height: 260px; }
+
+        /* Chat messages overlay when chatting */
+        .chat-messages {
+            flex: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column; gap: 14px;
+        }
+        .message { display: flex; gap: 10px; align-items: flex-start; }
+        .avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 700; flex-shrink: 0;
+        }
+        .avatar.ai { background: #7c3aed; color: white; }
+        .avatar.user-av { background: var(--primary); color: white; }
+        .bubble { background: var(--bg); padding: 12px 16px; border-radius: 12px; font-size: 0.9rem; line-height: 1.6; max-width: 80%; }
+        .message.user { flex-direction: row-reverse; }
+        .message.user .bubble { background: var(--primary); color: white; }
+
+        /* Suggestion pills */
+        .suggestions-row {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            background: var(--card-bg);
+        }
+        .pill {
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 20px; padding: 6px 14px;
+            font-size: 0.82rem; color: var(--primary); font-weight: 500;
+            cursor: pointer; transition: 0.15s;
+        }
+        .pill:hover { background: var(--primary-light); border-color: var(--primary); }
+
+        /* Empty state */
+        .empty-state {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; flex: 1; padding: 40px;
+            text-align: center; color: var(--text-muted);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+
+        #toast {
+            position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+            background: #1e293b; color: white; padding: 12px 24px;
+            border-radius: 10px; font-size: 0.9rem; z-index: 999;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        #toast.show { opacity: 1; }
+
+        .typing span {
+            display: inline-block; width: 7px; height: 7px; background: #94a3b8;
+            border-radius: 50%; margin: 0 2px; animation: bounce 1.2s infinite;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+    </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🤖</div>
+    <div class="logo-text">
+      <div class="logo-name">ResumeBot</div>
+      <div class="logo-sub">AI-powered Resume Intelligence Platform</div>
+    </div>
+  </div>
+  <a href="/" class="back-btn">← Back to Home</a>
+  <button class="theme-btn">☀️</button>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT: Upload Panel -->
+  <div class="left-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span class="section-title">Upload Resumes</span>
+      <span class="uploaded-count"><span class="count-icon">👥</span><span id="uploadCount">0 uploaded</span></span>
+    </div>
+
+    <div class="upload-zone" onclick="document.getElementById('multiFileInput').click()">
+      <div class="upload-icon">⬆</div>
+      <p><b>Click to upload PDFs</b><br>Multiple files supported</p>
+    </div>
+
+    <div id="candidatesGrid"></div>
+  </div>
+
+  <!-- RIGHT: Charts + Chat -->
+  <div class="right-panel">
+    <!-- Chat input -->
+    <div class="chat-bar">
+      <input type="text" id="compInput" placeholder="Ask a question about the resume(s)..." onkeypress="if(event.key==='Enter') sendComparison()">
+      <button class="send-btn" onclick="sendComparison()">➤</button>
+    </div>
+
+    <!-- Suggestions -->
+    <div class="suggestions-row" id="suggestionSection" style="display:none;">
+      <div id="chatPills"></div>
+    </div>
+
+    <!-- Content area: charts then chat -->
+    <div class="charts-area" id="chartsArea">
+      <!-- Default empty state -->
+      <div class="empty-state" id="emptyChat">
+        <div class="empty-icon">📊</div>
+        <p style="font-weight:600;color:var(--text);margin-bottom:6px;">No Resumes Uploaded</p>
+        <p style="font-size:0.88rem;">Upload resumes to see comparison charts and start chatting</p>
+      </div>
+    </div>
+
+    <!-- Chat messages (shown alongside/below charts) -->
+    <div class="chat-messages" id="chatMessages" style="display:none;max-height:280px;border-top:1px solid var(--border);"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<input type="file" id="multiFileInput" multiple accept=".pdf" style="display:none" onchange="handleMultiUpload(this)">
+
+<script>
+    let sessionId = null;
+    let candidates = [];
+    let uploadCount = 0;
+
+    // Create session on load
+    fetch('/comparison/create', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => sessionId = d.comparison_id);
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    async function handleMultiUpload(input) {
+        const files = Array.from(input.files);
+        if (!files.length) return;
+
+        if (!sessionId) {
+            const res = await fetch('/comparison/create', { method: 'POST' });
+            const d = await res.json();
+            sessionId = d.comparison_id;
+        }
+
+        const formData = new FormData();
+        files.forEach(f => formData.append('files[]', f));
+
+        showToast('Processing Resumes...');
+
+        try {
+            const res = await fetch(`/comparison/${sessionId}/upload`, { method: 'POST', body: formData });
+            const data = await res.json();
+
+            files.forEach((f, i) => {
+                if (!candidates.find(c => c.name === f.name)) {
+                    const score = data.candidates ? data.candidates[i]?.score : null;
+                    candidates.push({ name: f.name, score });
+                    addCandidateCard(f.name, score);
+                }
+            });
+
+            uploadCount += files.length;
+            document.getElementById('uploadCount').textContent = `${uploadCount} uploaded`;
+
+            document.getElementById('emptyChat').style.display = 'none';
+            loadSuggestions();
+            loadDefaultCharts();
+            showToast(`✅ ${files.length} Resume(s) Uploaded!`);
+        } catch(e) {
+            showToast('❌ Upload failed');
+        }
+    }
+
+    function addCandidateCard(name, score) {
+        const grid = document.getElementById('candidatesGrid');
+        const div = document.createElement('div');
+        div.className = 'candidate-card';
+        div.id = `card-${name}`;
+        div.innerHTML = `
+            <div class="candidate-icon">📄</div>
+            <div class="candidate-info">
+                <div class="candidate-name">${name}</div>
+                <div class="processed-badge">✅ Processed ${score ? `<span class="candidate-score" style="margin-left:6px;">Score: ${score}%</span>` : ''}</div>
+            </div>
+        `;
+        grid.appendChild(div);
+    }
+
+    async function loadDefaultCharts() {
+        try {
+            const res = await fetch(`/comparison/${sessionId}/analyze`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const c = data.data?.candidates || [];
+            if (!c.length) return;
+
+            const chartsArea = document.getElementById('chartsArea');
+            chartsArea.innerHTML = '';
+
+            // Bar chart - overall scores
+            const barCard = document.createElement('div');
+            barCard.className = 'chart-card';
+            barCard.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <h3 style="margin:0;">Candidate Comparison</h3>
+                    <input type="text" id="compInputInner" placeholder="Ask a question about the resume(s)..." style="border:1px solid var(--border);border-radius:8px;padding:7px 14px;font-size:0.85rem;outline:none;width:300px;" onkeypress="if(event.key==='Enter'){document.getElementById('compInput').value=this.value;sendComparison();}">
+                </div>
+                <div class="chart-wrapper"><canvas id="overallChart"></canvas></div>
+            `;
+            chartsArea.appendChild(barCard);
+
+            new Chart(document.getElementById('overallChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: c.map(x => x.name),
+                    datasets: [{ label: 'Overall Score', data: c.map(x => x.relevance_score || x.score || 70), backgroundColor: '#2563eb', borderRadius: 6 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, max: 100 } }, plugins: { legend: { display: true } } }
+            });
+
+            // Radar chart if skills available
+            if (data.data?.skills) {
+                const radarCard = document.createElement('div');
+                radarCard.className = 'chart-card';
+                radarCard.innerHTML = `<h3>Skills Comparison (Radar Chart)</h3><div class="chart-wrapper" style="height:300px;"><canvas id="radarChart"></canvas></div>`;
+                chartsArea.appendChild(radarCard);
+
+                const skills = data.data.skills;
+                const colors = ['rgba(37,99,235,0.4)', 'rgba(124,58,237,0.4)', 'rgba(5,150,105,0.4)'];
+                const borderColors = ['#2563eb', '#7c3aed', '#059669'];
+
+                new Chart(document.getElementById('radarChart').getContext('2d'), {
+                    type: 'radar',
+                    data: {
+                        labels: skills.labels || ['JavaScript', 'Python', 'SQL', 'Leadership', 'Communication'],
+                        datasets: c.map((cand, i) => ({
+                            label: cand.name,
+                            data: skills.data?.[i] || [70, 80, 65, 75, 60],
+                            backgroundColor: colors[i % colors.length],
+                            borderColor: borderColors[i % borderColors.length],
+                            borderWidth: 2
+                        }))
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, max: 100 } } }
+                });
+            }
+        } catch(e) { console.log('Charts skipped:', e); }
+    }
+
+    async function loadSuggestions() {
+        if (!sessionId) return;
+        try {
+            const res = await fetch(`/comparison/${sessionId}/suggestions`);
+            const data = await res.json();
+            const pills = document.getElementById('chatPills');
+            document.getElementById('suggestionSection').style.display = 'flex';
+            if (data.suggestions?.length) {
+                pills.innerHTML = data.suggestions.map(s =>
+                    `<span class="pill" onclick="sendComparison('${s}')">${s}</span>`
+                ).join('');
+            }
+        } catch(e) {}
+    }
+
+    async function sendComparison(msg) {
+        const input = document.getElementById('compInput');
+        const message = msg || input.value.trim();
+        if (!message) return;
+        if (!sessionId) { showToast('Please upload resumes first.'); return; }
+
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.style.display = 'flex';
+
+        addMsg('user', message);
+        if (!msg) input.value = '';
+
+        const typing = addTyping();
+
+        try {
+            const res = await fetch(`/comparison/${sessionId}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+            const data = await res.json();
+            typing.remove();
+            addMsg('ai', data.response || 'Sorry, something went wrong.');
+
+            if (data.graph_data) {
+                renderDynamicChart(data.graph_data);
+            }
+        } catch(e) {
+            typing.remove();
+            addMsg('ai', 'Connection error.');
+        }
+    }
+
+    function addMsg(type, text) {
+        const chat = document.getElementById('chatMessages');
+        const div = document.createElement('div');
+        div.className = `message ${type}`;
+        const av = `<div class="avatar ${type === 'ai' ? 'ai' : 'user-av'}">${type === 'ai' ? '✦' : 'U'}</div>`;
+        const bubble = `<div class="bubble">${text.replace(/\n/g,'<br>')}</div>`;
+        div.innerHTML = type === 'ai' ? av + bubble : bubble + av;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+        return div;
+    }
+
+    function addTyping() {
+        const chat = document.getElementById('chatMessages');
+        const div = document.createElement('div');
+        div.className = 'message ai';
+        div.innerHTML = `<div class="avatar ai">✦</div><div class="bubble typing"><span></span><span></span><span></span></div>`;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+        return div;
+    }
+
+    function renderDynamicChart(config) {
+        const chartsArea = document.getElementById('chartsArea');
+        const card = document.createElement('div');
+        card.className = 'chart-card';
+        const id = 'dynChart_' + Date.now();
+        card.innerHTML = `<h3>${config.title || 'Analysis'}</h3><div class="chart-wrapper"><canvas id="${id}"></canvas></div>`;
+        chartsArea.appendChild(card);
+        new Chart(document.getElementById(id).getContext('2d'), {
+            type: config.type || 'bar',
+            data: { labels: config.labels, datasets: config.datasets },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+</script>
+</body>
+</html> -->

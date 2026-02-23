@@ -1,4 +1,4 @@
-
+<!-- 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,7 +68,7 @@ input[type="text"] {
     outline: none;
 }
 
-/* ATS MODAL */
+
 #atsPanel {
     position: fixed;
     top:0;
@@ -100,7 +100,6 @@ input[type="text"] {
 
     <h2>Resume Chatbot</h2>
 
-    <!-- ATS BUTTON -->
     <div style="position:absolute; top:20px; right:20px;">
         <button class="btn btn-dark" onclick="openATSPanel()">
             ATS Score Checker
@@ -122,7 +121,7 @@ input[type="text"] {
 
 </div>
 
-<!-- ATS MODAL -->
+
 <div id="atsPanel">
     <div class="ats-card">
 
@@ -136,13 +135,12 @@ input[type="text"] {
             Upload resume and paste job description to check ATS compatibility.
         </p>
 
-        <!-- Resume Upload -->
+        
         <div style="margin-top:15px;">
             <input type="file" id="modalResumeFile" accept=".pdf">
         </div>
 
-        <!-- Job Description -->
-        <!-- Job Description Label -->
+        
         <div style="text-align:left; margin-top:20px; font-weight:600;">
             Job Description
         </div>
@@ -165,126 +163,1790 @@ input[type="text"] {
 
 <script>
 
-// Upload Resume (Main Chat)
-async function uploadSingleFile() {
-    const fileInput = document.getElementById("singleFile");
-    const status = document.getElementById("statusMsg");
-    if (!fileInput.files.length) return;
-
-    const formData = new FormData();
-    formData.append("resume", fileInput.files[0]);
-
-    const res = await fetch("/upload", { method: "POST", body: formData });
-    const data = await res.json();
-
-    if (res.ok) {
-        status.innerText = `✅ ${data.filename} uploaded!`;
-        addMsg("System", "Resume uploaded successfully.", "bot");
-    }
-}
-
-// Chat
-async function askBot() {
-    const input = document.getElementById("userQuery");
-    const text = input.value.trim();
-    if (!text) return;
-
-    addMsg("You", text, "user");
-    input.value = "";
-
-    const res = await fetch("/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: text })
-    });
-
-    const data = await res.json();
-    addMsg("Bot", data.answer, "bot");
-}
-
-function addMsg(sender, text, type) {
-    const box = document.getElementById("chat-box");
-    const div = document.createElement("div");
-    div.className = `msg ${type}`;
-    div.innerText = text;
-    box.appendChild(div);
-    box.scrollTop = box.scrollHeight;
-}
-
-function handleEnter(e) {
-    if (e.key === "Enter") askBot();
-}
-
-// ATS MODAL
-function openATSPanel() {
-    document.getElementById("atsPanel").style.display = "flex";
-}
-
-function closeATSPanel() {
-    document.getElementById("atsPanel").style.display = "none";
-}
-
-async function runModalATS() {
-    const fileInput = document.getElementById("modalResumeFile");
-    const jd = document.getElementById("modalJDText").value.trim();
-    const resultDiv = document.getElementById("modalATSResult");
-
-    if (!fileInput.files.length) {
-        alert("Please upload a resume file.");
-        return;
-    }
-
-    if (!jd) {
-        alert("Please paste job description.");
-        return;
-    }
-
-    resultDiv.innerHTML = "Uploading and analyzing...";
-
-    try {
-        const formData = new FormData();
-        formData.append("resume", fileInput.files[0]);
-
-        const uploadRes = await fetch("/upload", {
-            method: "POST",
-            body: formData
-        });
-
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-            resultDiv.innerHTML = "<p style='color:red;'>Upload failed.</p>";
-            return;
-        }
-
-        const atsRes = await fetch("/ats-score", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                resume: uploadData.text,
-                job_description: jd
-            })
-        });
-
-        const data = await atsRes.json();
-
-        if (!atsRes.ok) {
-            resultDiv.innerHTML = `<p style="color:red;">${data.error}</p>`;
-            return;
-        }
-
-        resultDiv.innerHTML = `
-            <h2>${data["ATS Score"]}%</h2>
-            <p><strong>Matched:</strong> ${data["Matched Skills"].join(", ")}</p>
-            <p><strong>Missing:</strong> ${data["Missing Skills"].join(", ")}</p>
-        `;
-
-    } catch (err) {
-        resultDiv.innerHTML = "<p style='color:red;'>Server error.</p>";
-    }
-}
 
 </script>
 
+</body>
+</html> -->
+<!-- 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResumeBot - AI-powered Resume Intelligence Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #2563eb;
+  --primary-light: #eff6ff;
+  --primary-dark: #1d4ed8;
+  --purple: #7c3aed;
+  --green: #059669;
+  --green-light: #d1fae5;
+  --red-light: #fee2e2;
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --radius: 14px;
+}
+
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 28px; background: var(--card);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.logo { display: flex; align-items: center; gap: 11px; cursor: pointer; }
+.logo-icon { width: 38px; height: 38px; background: var(--primary); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; font-size: 17px; }
+.logo-name { font-weight: 800; font-size: 0.97rem; }
+.logo-sub  { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+.back-link { display: none; align-items: center; gap: 5px; font-size: 0.88rem; color: var(--muted); cursor: pointer; background: none; border: none; font-family: inherit; font-weight: 500; transition: color .15s; }
+.back-link:hover { color: var(--text); }
+.theme-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; cursor: pointer; font-size: 14px; }
+
+.page { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.page.active { display: flex; }
+
+#landingPage { overflow-y: auto; }
+
+.hero { text-align: center; padding: 64px 24px 40px; }
+.hero h1 { font-size: clamp(1.9rem, 4.5vw, 3rem); font-weight: 800; color: var(--primary); letter-spacing: -0.02em; margin-bottom: 14px; }
+.hero p { font-size: 1.05rem; color: var(--muted); max-width: 520px; margin: 0 auto 50px; line-height: 1.7; }
+
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 22px; max-width: 1060px; margin: 0 auto; padding: 0 24px 56px; }
+
+.feature-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px 26px; cursor: pointer; transition: box-shadow .2s, transform .2s; text-align: left; }
+.feature-card:hover { box-shadow: 0 8px 28px rgba(37,99,235,.10); transform: translateY(-3px); }
+.card-icon { width: 60px; height: 60px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 18px; }
+.card-icon.blue   { background: var(--primary); }
+.card-icon.purple { background: var(--purple); }
+.card-icon.green  { background: var(--green); }
+.feature-card h3 { font-size: 1.08rem; font-weight: 700; margin-bottom: 10px; }
+.feature-card p  { font-size: 0.88rem; color: var(--muted); line-height: 1.6; margin-bottom: 18px; }
+.card-cta { font-size: 0.88rem; font-weight: 600; color: var(--primary); }
+
+.stats-bar { display: grid; grid-template-columns: repeat(3,1fr); border-top: 1px solid var(--border); background: var(--card); padding: 40px 24px; text-align: center; }
+.stat-val { font-size: 2rem; font-weight: 800; color: var(--primary); }
+.stat-lbl { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+
+.split { display: flex; flex: 1; overflow: hidden; }
+
+.left-panel {
+  width: 330px; flex-shrink: 0; padding: 20px;
+  display: flex; flex-direction: column; gap: 15px;
+  border-right: 1px solid var(--border); background: var(--card); overflow-y: auto;
+}
+.panel-title { font-weight: 700; font-size: 0.98rem; }
+.panel-title-row { display: flex; justify-content: space-between; align-items: center; }
+.count-badge { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+
+.upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 34px 18px; text-align: center; cursor: pointer; background: var(--bg); transition: .2s; }
+.upload-zone:hover { border-color: var(--primary); background: var(--primary-light); }
+.upload-zone.has-file { border-color: var(--green); background: #f0fdf4; }
+.uz-icon { font-size: 26px; margin-bottom: 10px; color: var(--muted); }
+.uz-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.uz-sub   { font-size: 0.78rem; color: var(--muted); }
+
+.file-card { display: flex; align-items: center; gap: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 11px; padding: 13px 14px; }
+.fc-icon { font-size: 20px; color: var(--primary); flex-shrink: 0; }
+.fc-info { flex: 1; min-width: 0; }
+.fc-name { font-size: 0.86rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fc-time { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+.fc-status { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--green); margin-top: 3px; flex-wrap: wrap; }
+.fc-score { font-size: 0.72rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 1px 7px; border-radius: 20px; }
+.remove-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 2px 6px; border-radius: 5px; line-height: 1; }
+.remove-btn:hover { background: var(--red-light); color: #dc2626; }
+
+.quick-stats { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.qs-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; }
+.qs-row { display: flex; justify-content: space-between; font-size: 0.84rem; padding: 7px 0; border-bottom: 1px solid var(--bg); }
+.qs-row:last-child { border: none; }
+.qs-key { color: var(--muted); }
+.qs-val { font-weight: 600; }
+.qs-val.green { color: var(--green); }
+.qs-val.blue  { color: var(--primary); }
+
+.ats-score-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+.asc-label { font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.asc-num   { font-size: 3rem; font-weight: 800; line-height: 1; }
+.asc-grade { font-size: 0.82rem; color: var(--muted); margin: 4px 0 10px; }
+.asc-bar   { height: 8px; background: var(--border); border-radius: 20px; overflow: hidden; margin-bottom: 10px; }
+.asc-fill  { height: 100%; border-radius: 20px; transition: width .8s ease; }
+.asc-hint  { font-size: 0.78rem; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; text-align: left; }
+
+.jd-section { display: flex; flex-direction: column; gap: 7px; }
+.jd-label { font-size: 0.85rem; font-weight: 600; }
+.jd-textarea { width: 100%; padding: 11px; border: 1px solid var(--border); border-radius: 9px; font-family: inherit; font-size: 0.83rem; resize: none; outline: none; line-height: 1.5; background: var(--bg); }
+.jd-textarea:focus { border-color: var(--primary); background: white; }
+
+.right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.chat-header { display: flex; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--border); background: var(--card); flex-shrink: 0; }
+.ch-avatar { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; flex-shrink: 0; }
+.ch-avatar.purple { background: linear-gradient(135deg, var(--purple), var(--primary)); }
+.ch-avatar.green  { background: linear-gradient(135deg, var(--green), #0891b2); }
+.ch-title { font-weight: 700; font-size: 1rem; }
+.ch-sub   { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+.chat-messages { flex: 1; overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 15px; }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; text-align: center; color: var(--muted); padding: 40px; }
+.es-icon { width: 70px; height: 70px; border-radius: 18px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 16px; }
+.es-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.es-sub   { font-size: 0.85rem; margin-bottom: 22px; }
+
+.suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.chip-btn { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 8px 16px; font-size: 0.82rem; font-weight: 500; color: var(--text); cursor: pointer; transition: .15s; font-family: inherit; }
+.chip-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+
+.message { display: flex; gap: 10px; align-items: flex-start; }
+.av { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.av.ai { background: var(--purple); color: white; }
+.av.usr { background: var(--primary); color: white; }
+.bubble { padding: 11px 15px; border-radius: 12px; font-size: 0.88rem; line-height: 1.6; max-width: 82%; background: var(--bg); }
+.message.user { flex-direction: row-reverse; }
+.message.user .bubble { background: var(--primary); color: white; }
+
+.typing span { display: inline-block; width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; margin: 0 2px; animation: bop 1.2s infinite; }
+.typing span:nth-child(2) { animation-delay: .2s; }
+.typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes bop { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+.pills-row { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 22px; border-bottom: 1px solid var(--border); background: var(--card); flex-shrink: 0; }
+.pill { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 5px 13px; font-size: 0.8rem; color: var(--primary); font-weight: 500; cursor: pointer; transition: .15s; }
+.pill:hover { background: var(--primary-light); border-color: var(--primary); }
+
+.input-area { padding: 14px 22px; border-top: 1px solid var(--border); background: var(--card); display: flex; gap: 10px; flex-shrink: 0; }
+.input-area input { flex: 1; padding: 11px 15px; border: 1px solid var(--border); border-radius: 9px; font-family: inherit; font-size: 0.9rem; outline: none; background: var(--bg); }
+.input-area input:focus { border-color: var(--primary); background: white; }
+.send-btn { width: 42px; height: 42px; border-radius: 9px; background: var(--primary); color: white; border: none; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: .15s; flex-shrink: 0; }
+.send-btn:hover { background: var(--primary-dark); }
+
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 9px; border: none; font-weight: 600; font-size: 0.86rem; cursor: pointer; transition: .15s; font-family: inherit; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+
+.charts-scroll { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; }
+.chart-card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 16px; }
+.chart-wrapper { position: relative; height: 250px; }
+
+.comp-chat { flex-direction: column; gap: 14px; overflow-y: auto; max-height: 240px; padding: 16px 22px; border-top: 1px solid var(--border); background: var(--card); }
+
+.ats-result-block { padding: 18px 22px; }
+.arc-score { font-size: 1.6rem; font-weight: 800; margin-bottom: 3px; }
+.arc-grade { font-size: 0.82rem; color: var(--muted); margin-bottom: 14px; }
+.arc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip-g { background: var(--green-light); color: #065f46; padding: 3px 11px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.chip-r { background: var(--red-light); color: #991b1b; padding: 3px 11px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.arc-summary { font-size: 0.85rem; color: #475569; background: var(--bg); padding: 13px; border-radius: 9px; line-height: 1.6; margin-top: 14px; }
+.arc-slabel { font-size: 0.82rem; font-weight: 700; margin-top: 13px; margin-bottom: 5px; }
+
+
+#toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 11px 22px; border-radius: 9px; font-size: 0.88rem; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; }
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" onclick="goHome()">
+    <div class="logo-icon">🤖</div>
+    <div>
+      <div class="logo-name">ResumeBot</div>
+      <div class="logo-sub">AI-powered Resume Intelligence Platform</div>
+    </div>
+  </div>
+  <button class="back-link" id="backBtn" onclick="goHome()">← Back to Home</button>
+  <button class="theme-btn">☀️</button>
+</header>
+
+<div class="page active" id="landingPage">
+  <div class="hero">
+    <h1>Intelligent Resume Analysis</h1>
+    <p>Leverage AI to streamline your hiring process. Analyze, compare, and optimize resumes with enterprise-grade intelligence.</p>
+  </div>
+
+  <div class="cards-grid">
+    <div class="feature-card" onclick="showPage('singlePage')">
+      <div class="card-icon blue">💬</div>
+      <h3>Single Resume Chat</h3>
+      <p>Upload one resume and ask AI anything about it. Get instant insights, summaries, and detailed analysis.</p>
+      <span class="card-cta">Get started ›</span>
+    </div>
+    <div class="feature-card" onclick="showPage('compPage')">
+      <div class="card-icon purple">📊</div>
+      <h3>Resume Comparison Mode</h3>
+      <p>Upload multiple resumes and compare candidates with interactive charts and comprehensive analytics.</p>
+      <span class="card-cta">Get started ›</span>
+    </div>
+    <div class="feature-card" onclick="showPage('atsPage')">
+      <div class="card-icon green">✅</div>
+      <h3>ATS Score Checker</h3>
+      <p>Evaluate resume compatibility against job descriptions. Get actionable ATS optimization recommendations.</p>
+      <span class="card-cta">Get started ›</span>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div><div class="stat-val">10K+</div><div class="stat-lbl">Resumes Analyzed</div></div>
+    <div><div class="stat-val">80%</div><div class="stat-lbl">Time Saved</div></div>
+    <div><div class="stat-val">98%</div><div class="stat-lbl">Accuracy Rate</div></div>
+  </div>
+</div>
+
+<div class="page" id="singlePage">
+  <div class="split">
+    <div class="left-panel">
+      <div class="panel-title">Upload Resume</div>
+
+      <div class="upload-zone" id="singleZone" onclick="document.getElementById('singleFileInput').click()">
+        <div class="uz-icon">⬆</div>
+        <div class="uz-title">Click to upload PDF</div>
+        <div class="uz-sub">Maximum file size: 10MB</div>
+      </div>
+
+      <div id="singleFileCard" style="display:none;" class="file-card">
+        <div class="fc-icon">📄</div>
+        <div class="fc-info">
+          <div class="fc-name" id="singleFName"></div>
+          <div class="fc-time" id="singleFTime"></div>
+          <div class="fc-status">✅ Processed</div>
+        </div>
+      </div>
+
+      <div id="singleStats" class="quick-stats" style="display:none;">
+        <div class="qs-title">Quick Stats</div>
+        <div class="qs-row"><span class="qs-key">Status</span><span class="qs-val green">Ready</span></div>
+        <div class="qs-row"><span class="qs-key">File Size</span><span class="qs-val blue" id="singleFSize">—</span></div>
+        <div class="qs-row"><span class="qs-key">Pages</span><span class="qs-val" id="singleFPages">—</span></div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="chat-header">
+        <div class="ch-avatar purple">✦</div>
+        <div>
+          <div class="ch-title">Single Resume Analysis</div>
+          <div class="ch-sub">Ask me anything about the resume(s)</div>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="singleChat">
+        <div class="empty-state" id="singleEmpty">
+          <div class="es-icon">🤖</div>
+          <div class="es-title">Ready to analyze</div>
+          <div class="es-sub">Try one of the suggested prompts below or ask your own question</div>
+          <!-- <div class="suggestion-chips">
+            <button class="chip-btn" onclick="singleAsk('Summarize this resume in 3 key points')">Summarize this resume in 3 key points</button>
+            <button class="chip-btn" onclick="singleAsk(&quot;What are the candidate's strongest skills?&quot;)">What are the candidate's strongest skills?</button>
+            <button class="chip-btn" onclick="singleAsk('How many years of experience does this candidate have?')">How many years of experience does this candidate have?</button>
+            <button class="chip-btn" onclick="singleAsk(&quot;What's the candidate's educational background?&quot;)">What's the candidate's educational background?</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="text" id="singleInput" placeholder="Ask a question about the resume(s)..." onkeypress="if(event.key==='Enter') sendSingle()">
+        <button class="send-btn" onclick="sendSingle()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="compPage">
+  <div class="split">
+    <div class="left-panel">
+      <div class="panel-title-row">
+        <span class="panel-title">Upload Resumes</span>
+        <span class="count-badge">👥 <span id="compCount">0 uploaded</span></span>
+      </div>
+
+      <div class="upload-zone" onclick="document.getElementById('multiFileInput').click()">
+        <div class="uz-icon">⬆</div>
+        <div class="uz-title">Click to upload PDFs</div>
+        <div class="uz-sub">Multiple files supported</div>
+      </div>
+
+      <div id="candidatesGrid" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+    <div class="right-panel">
+      <div class="chat-header">
+        <div class="ch-avatar purple">✦</div>
+        <div>
+          <div class="ch-title">Resume Comparison Mode</div>
+          <div class="ch-sub">Ask me anything about the resume(s)</div>
+        </div>
+      </div>
+
+      
+      <div class="input-area" style="border-top:none;border-bottom:1px solid var(--border);">
+        <input type="text" id="compInput" placeholder="Ask a question about the resume(s)..." onkeypress="if(event.key==='Enter') sendComparison()">
+        <button class="send-btn" onclick="sendComparison()">➤</button>
+      </div>
+
+      
+      <div class="pills-row" id="compPills" style="display:none;" >
+        <div id="chatPills" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
+      </div>
+
+      
+      <div class="charts-scroll" id="chartsScroll">
+        <div class="empty-state" id="compEmpty">
+          <div class="es-icon">📊</div>
+          <div class="es-title">No Resumes Uploaded</div>
+          <div class="es-sub">Upload resumes on the left to see comparison charts and start chatting</div>
+        </div>
+      </div>
+
+      
+      <div class="comp-chat" id="compChat" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+
+<div class="page" id="atsPage">
+  <div class="split">
+    <div class="left-panel">
+      <div class="panel-title">Upload Resume</div>
+
+      <div class="upload-zone" id="atsZone" onclick="document.getElementById('atsFileInput').click()">
+        <div class="uz-icon">⬆</div>
+        <div class="uz-title">Click to upload PDF</div>
+        <div class="uz-sub">Maximum file size: 10MB</div>
+      </div>
+
+      <div id="atsFileCard" style="display:none;" class="file-card">
+        <div class="fc-icon">📄</div>
+        <div class="fc-info">
+          <div class="fc-name" id="atsFName"></div>
+          <div class="fc-time" id="atsFTime"></div>
+          <div class="fc-status">✅ Processed <span class="fc-score" id="atsScoreBadge" style="display:none;"></span></div>
+        </div>
+      </div>
+
+      
+      <div id="atsScoreCard" class="ats-score-card" style="display:none;">
+        <div class="asc-label">🎯 ATS Score</div>
+        <div class="asc-num" id="atsScoreNum">—</div>
+        <div class="asc-grade" id="atsScoreGrade">—</div>
+        <div class="asc-bar"><div class="asc-fill" id="atsBarFill" style="width:0%;background:var(--primary);"></div></div>
+        <div class="asc-hint">💡 Ask the AI assistant for optimization tips to improve your score!</div>
+      </div>
+
+      
+      <div class="jd-section">
+        <div class="jd-label">Job Description <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">(Optional)</span></div>
+        <textarea class="jd-textarea" id="jdInput" rows="6" placeholder="Paste Job Description here..."></textarea>
+        <button class="btn btn-primary" onclick="checkATS()" id="checkATSBtn">Check ATS Score</button>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="chat-header">
+        <div class="ch-avatar green">✦</div>
+        <div>
+          <div class="ch-title">ATS Compatibility Checker</div>
+          <div class="ch-sub">Ask me anything about the resume(s)</div>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="atsChat">
+        <div class="empty-state" id="atsEmpty">
+          <div class="es-icon">🤖</div>
+          <div class="es-title">Ready to analyze</div>
+          <div class="es-sub">Try one of the suggested prompts below or ask your own question</div>
+          
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="text" id="atsInput" placeholder="Ask a question about the resume(s)..." onkeypress="if(event.key==='Enter') sendAts()">
+        <button class="send-btn" onclick="sendAts()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<input type="file" id="singleFileInput" accept=".pdf" style="display:none" onchange="handleSingleUpload(this)">
+<input type="file" id="multiFileInput" multiple accept=".pdf" style="display:none" onchange="handleMultiUpload(this)">
+<input type="file" id="atsFileInput" accept=".pdf" style="display:none" onchange="handleAtsUpload(this)">
+
+<div id="toast"></div>
+
+
+<script>
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('backBtn').style.display = id === 'landingPage' ? 'none' : 'flex';
+}
+function goHome() { showPage('landingPage'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+
+function mkMsg(type, text, chatId) {
+  const chat = document.getElementById(chatId);
+  const div = document.createElement('div');
+  div.className = `message ${type}`;
+  const av = `<div class="av ${type==='ai'?'ai':'usr'}">${type==='ai'?'✦':'U'}</div>`;
+  const bubble = `<div class="bubble">${text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>`;
+  div.innerHTML = type === 'ai' ? av + bubble : bubble + av;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+function mkTyping(chatId) {
+  const chat = document.getElementById(chatId);
+  const div = document.createElement('div');
+  div.className = 'message ai';
+  div.innerHTML = `<div class="av ai">✦</div><div class="bubble typing"><span></span><span></span><span></span></div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+
+async function handleSingleUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('resume', file);
+  showToast('Uploading...');
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    document.getElementById('singleZone').classList.add('has-file');
+    document.getElementById('singleFileCard').style.display = 'flex';
+    document.getElementById('singleFName').textContent = file.name;
+    document.getElementById('singleFTime').textContent = new Date().toLocaleTimeString();
+    document.getElementById('singleStats').style.display = 'block';
+    document.getElementById('singleFSize').textContent = (file.size/1024/1024).toFixed(1) + ' MB';
+    document.getElementById('singleFPages').textContent = data.pages || '—';
+
+    showToast('✅ Resume uploaded!');
+    document.getElementById('singleEmpty').style.display = 'none';
+    mkMsg('ai', `✓ Got it! I've loaded <strong>${file.name}</strong>. What would you like to know?`, 'singleChat');
+  } catch(e) { showToast('❌ Upload failed'); }
+}
+
+function singleAsk(q) { document.getElementById('singleInput').value = q; sendSingle(); }
+
+async function sendSingle() {
+  const input = document.getElementById('singleInput');
+  const q = input.value.trim(); if (!q) return;
+  document.getElementById('singleEmpty').style.display = 'none';
+  mkMsg('user', q, 'singleChat'); input.value = '';
+  const t = mkTyping('singleChat');
+  try {
+    const res = await fetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question:q}) });
+    const data = await res.json();
+    t.remove(); mkMsg('ai', data.answer || 'Sorry, something went wrong.', 'singleChat');
+  } catch(e) { t.remove(); mkMsg('ai','Connection error. Please check your server.','singleChat'); }
+}
+
+
+let comparisonId = null;
+let candidates = [];
+let compCount = 0;
+
+
+fetch('/comparison/create', { method: 'POST' })
+  .then(r => r.json()).then(d => comparisonId = d.comparison_id).catch(()=>{});
+
+async function handleMultiUpload(input) {
+  const files = Array.from(input.files); if (!files.length) return;
+
+  if (!comparisonId) {
+    const r = await fetch('/comparison/create', { method: 'POST' });
+    comparisonId = (await r.json()).comparison_id;
+  }
+
+  const fd = new FormData();
+  files.forEach(f => fd.append('files[]', f));
+  showToast('Processing Resumes...');
+
+  try {
+    const res = await fetch(`/comparison/${comparisonId}/upload`, { method:'POST', body:fd });
+    const data = await res.json();
+
+    files.forEach((f, i) => {
+      if (!candidates.find(c => c.name === f.name)) {
+        const score = data.candidates?.[i]?.score || null;
+        candidates.push({ name: f.name });
+        addCandidateCard(f.name, score);
+      }
+    });
+
+    compCount += files.length;
+    document.getElementById('compCount').textContent = compCount + ' uploaded';
+    document.getElementById('compEmpty').style.display = 'none';
+    showToast(`✅ ${files.length} Resume(s) Uploaded!`);
+    loadSuggestions();
+    loadCharts();
+  } catch(e) { showToast('❌ Upload failed'); }
+}
+
+function addCandidateCard(name, score) {
+  const grid = document.getElementById('candidatesGrid');
+  const div = document.createElement('div');
+  div.className = 'file-card'; div.id = `card-${name}`;
+  div.innerHTML = `
+    <div class="fc-icon">📄</div>
+    <div class="fc-info">
+      <div class="fc-name">${name}</div>
+      <div class="fc-status">✅ Processed ${score?`<span class="fc-score">Score: ${score}%</span>`:''}</div>
+    </div>
+    <button class="remove-btn" onclick="removeCandidate('${name}')">×</button>
+  `;
+  grid.appendChild(div);
+}
+
+function removeCandidate(name) {
+  candidates = candidates.filter(c => c.name !== name);
+  const el = document.getElementById(`card-${name}`);
+  if (el) el.remove();
+  compCount = Math.max(0, compCount - 1);
+  document.getElementById('compCount').textContent = compCount + ' uploaded';
+}
+
+async function loadSuggestions() {
+  if (!comparisonId) return;
+  try {
+    const res = await fetch(`/comparison/${comparisonId}/suggestions`);
+    const data = await res.json();
+    if (data.suggestions?.length) {
+      document.getElementById('compPills').style.display = 'flex';
+      document.getElementById('chatPills').innerHTML = data.suggestions.map(s =>
+        `<span class="pill" onclick="sendComparison('${s.replace(/'/g,"\\'")}')">${s}</span>`
+      ).join('');
+    }
+  } catch(e) {}
+}
+
+async function loadCharts() {
+  try {
+    const res = await fetch(`/comparison/${comparisonId}/analyze`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const c = data.data?.candidates || []; if (!c.length) return;
+
+    const scroll = document.getElementById('chartsScroll');
+    scroll.innerHTML = '';
+
+    
+    const b1 = addChartCard(scroll, 'Overall Score Comparison', '280px');
+    new Chart(b1.getContext('2d'), {
+      type: 'bar',
+      data: { labels: c.map(x=>x.name), datasets: [{ label:'Overall Score', data:c.map(x=>x.relevance_score||x.score||0), backgroundColor:'#2563eb', borderRadius:6 }] },
+      options: { responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,max:100}}, plugins:{legend:{position:'top'}} }
+    });
+
+    
+    if (c.some(x=>x.years_experience)) {
+      const b2 = addChartCard(scroll, 'Relevance Score & Years of Experience', '280px');
+      new Chart(b2.getContext('2d'), {
+        type:'bar',
+        data:{ labels:c.map(x=>x.name), datasets:[
+          { label:'Relevance Score', data:c.map(x=>x.relevance_score||0), backgroundColor:'#2563eb', borderRadius:6 },
+          { label:'Years Experience', data:c.map(x=>x.years_experience||0), type:'line', borderColor:'#7c3aed', backgroundColor:'rgba(124,58,237,0.1)', tension:0.3, fill:true }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,max:100,ticks:{stepSize:10}}}, plugins:{legend:{position:'top'},tooltip:{mode:'index',intersect:false}} }
+      });
+    }
+
+    
+    if (data.data?.skills) {
+      const sk = data.data.skills;
+      const b3 = addChartCard(scroll, 'Skills Comparison (Radar Chart)', '300px');
+      const cols = ['rgba(37,99,235,0.35)','rgba(124,58,237,0.35)','rgba(5,150,105,0.35)'];
+      const bords = ['#2563eb','#7c3aed','#059669'];
+      new Chart(b3.getContext('2d'), {
+        type:'radar',
+        data:{ labels:sk.labels||['JavaScript','Python','SQL','Leadership','Communication'],
+          datasets: c.map((cd,i)=>({ label:cd.name, data:sk.data?.[i]||[70,80,65,75,60], backgroundColor:cols[i%cols.length], borderColor:bords[i%bords.length], borderWidth:2 })) },
+        options:{ responsive:true, maintainAspectRatio:false, scales:{r:{beginAtZero:true,max:100}} }
+      });
+    }
+  } catch(e) { console.log('Charts skipped:', e); }
+}
+
+function addChartCard(parent, title, height='250px') {
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  const id = 'chart_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  card.innerHTML = `<h3>${title}</h3><div class="chart-wrapper" style="height:${height};"><canvas id="${id}"></canvas></div>`;
+  parent.appendChild(card);
+  return document.getElementById(id);
+}
+
+async function sendComparison(msg) {
+  const input = document.getElementById('compInput');
+  const message = msg || input.value.trim(); if (!message) return;
+  if (!comparisonId) { showToast('Please upload resumes first.'); return; }
+
+  document.getElementById('compEmpty').style.display = 'none';
+  const chatEl = document.getElementById('compChat');
+  chatEl.style.display = 'flex';
+  mkMsg('user', message, 'compChat');
+  if (!msg) input.value = '';
+
+  const t = mkTyping('compChat');
+  try {
+    const res = await fetch(`/comparison/${comparisonId}/chat`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message })
+    });
+    const data = await res.json();
+    t.remove();
+    mkMsg('ai', data.response || 'Sorry, something went wrong.', 'compChat');
+    if (data.graph_data) renderDynChart(data.graph_data);
+  } catch(e) { t.remove(); mkMsg('ai','Connection error. Please check your server.','compChat'); }
+}
+
+function renderDynChart(config) {
+  const scroll = document.getElementById('chartsScroll');
+  const cv = addChartCard(scroll, config.title || 'Analysis');
+  new Chart(cv.getContext('2d'), {
+    type: config.type || 'bar',
+    data: { labels: config.labels, datasets: config.datasets },
+    options: { responsive:true, maintainAspectRatio:false }
+  });
+  scroll.scrollTop = scroll.scrollHeight;
+}
+
+
+let atsUploaded = false;
+
+async function handleAtsUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('resume', file);
+  showToast('Uploading...');
+  try {
+    const res = await fetch('/upload', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    document.getElementById('atsZone').classList.add('has-file');
+    document.getElementById('atsFileCard').style.display = 'flex';
+    document.getElementById('atsFName').textContent = file.name;
+    document.getElementById('atsFTime').textContent = new Date().toLocaleTimeString();
+    atsUploaded = true;
+    showToast('✅ Resume uploaded!');
+    document.getElementById('atsEmpty').style.display = 'none';
+    mkMsg('ai', `✓ Resume loaded: <strong>${file.name}</strong>. Paste a job description and click "Check ATS Score", or ask me anything!`, 'atsChat');
+  } catch(e) { showToast('❌ Upload failed'); }
+}
+
+async function checkATS() {
+  if (!atsUploaded) { showToast('Please upload a resume first.'); return; }
+  const jd = document.getElementById('jdInput').value.trim();
+  const btn = document.getElementById('checkATSBtn');
+  btn.disabled = true; btn.textContent = 'Checking...';
+  try {
+    const res = await fetch('/ats-score', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ job_description: jd })
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    displayATS(data);
+  } catch(e) { alert('Error connecting to server.'); }
+  finally { btn.disabled = false; btn.textContent = 'Check ATS Score'; }
+}
+
+function displayATS(data) {
+  const score   = data['ATS Score'] || 0;
+  const matched = data['Matched Skills'] || [];
+  const missing = data['Missing Skills'] || [];
+  const summary = data['Summary'] || '';
+  const grade   = score >= 70 ? 'Good' : score >= 50 ? 'Average' : 'Needs Work';
+  const color   = score >= 70 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626';
+
+  
+  const scoreCard = document.getElementById('atsScoreCard');
+  scoreCard.style.display = 'block';
+  const numEl = document.getElementById('atsScoreNum');
+  numEl.textContent = score; numEl.style.color = color;
+  document.getElementById('atsScoreGrade').textContent = grade;
+  document.getElementById('atsBarFill').style.width = score + '%';
+  document.getElementById('atsBarFill').style.background = color;
+  const badge = document.getElementById('atsScoreBadge');
+  badge.textContent = `Score: ${score}%`; badge.style.display = 'inline';
+
+  
+  document.getElementById('atsEmpty').style.display = 'none';
+  const chat = document.getElementById('atsChat');
+  const block = document.createElement('div');
+  block.className = 'ats-result-block';
+  block.innerHTML = `
+    <div class="arc-score" style="color:${color};">${score}% ATS Score</div>
+    <div class="arc-grade">${grade} compatibility</div>
+    ${matched.length ? `<div class="arc-slabel" style="color:#065f46;">✓ Matched Skills</div><div class="arc-chips">${matched.map(s=>`<span class="chip-g">${s}</span>`).join('')}</div>` : ''}
+    ${missing.length ? `<div class="arc-slabel" style="color:#991b1b;">✗ Missing Skills</div><div class="arc-chips">${missing.map(s=>`<span class="chip-r">${s}</span>`).join('')}</div>` : ''}
+    ${summary ? `<div class="arc-summary">${summary}</div>` : ''}
+  `;
+  chat.appendChild(block);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function atsAsk(q) { document.getElementById('atsInput').value = q; sendAts(); }
+
+async function sendAts() {
+  const input = document.getElementById('atsInput');
+  const q = input.value.trim(); if (!q) return;
+  document.getElementById('atsEmpty').style.display = 'none';
+  mkMsg('user', q, 'atsChat'); input.value = '';
+  const t = mkTyping('atsChat');
+  try {
+    const res = await fetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question:q}) });
+    const data = await res.json();
+    t.remove(); mkMsg('ai', data.answer || 'Sorry, something went wrong.', 'atsChat');
+  } catch(e) { t.remove(); mkMsg('ai','Connection error. Please check your server.','atsChat'); }
+}
+</script>
+</body>
+</html>  -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResumeBot - AI-powered Resume Intelligence Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --primary: #2563eb;
+  --primary-light: #eff6ff;
+  --primary-dark: #1d4ed8;
+  --purple: #7c3aed;
+  --green: #059669;
+  --green-light: #d1fae5;
+  --red-light: #fee2e2;
+  --bg: #f1f5f9;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --radius: 14px;
+}
+
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ---- HEADER ---- */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 13px 28px; background: var(--card);
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.logo { display: flex; align-items: center; gap: 11px; cursor: pointer; }
+.logo-icon { width: 38px; height: 38px; background: var(--primary); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; font-size: 17px; }
+.logo-name { font-weight: 800; font-size: 0.97rem; }
+.logo-sub  { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+.back-link { display: none; align-items: center; gap: 5px; font-size: 0.88rem; color: var(--muted); cursor: pointer; background: none; border: none; font-family: inherit; font-weight: 500; transition: color .15s; }
+.back-link:hover { color: var(--text); }
+.theme-btn {
+  background: none; border: 1px solid var(--border); border-radius: 8px;
+  padding: 7px 12px; cursor: pointer; display: flex; align-items: center;
+  gap: 6px; font-family: inherit; font-size: 0.82rem; font-weight: 600;
+  color: var(--muted); transition: .15s;
+}
+.theme-btn:hover { background: var(--bg); color: var(--text); }
+
+/* ---- DARK MODE ---- */
+body.dark {
+  --primary: #3b82f6;
+  --primary-light: #1e3a5f;
+  --primary-dark: #2563eb;
+  --purple: #a78bfa;
+  --green: #34d399;
+  --green-light: #064e3b;
+  --red-light: #450a0a;
+  --bg: #0f172a;
+  --card: #1e293b;
+  --text: #f1f5f9;
+  --muted: #94a3b8;
+  --border: #334155;
+  color: #f1f5f9;
+}
+
+/* Base elements */
+body.dark header,
+body.dark .left-panel,
+body.dark .comp-chat-panel,
+body.dark .comp-charts-header,
+body.dark .chat-header,
+body.dark .comp-chat-header,
+body.dark .input-area,
+body.dark .comp-input-area { background: #1e293b; }
+
+/* Feature cards - all text visible */
+body.dark .feature-card { background: #1e293b; border-color: #334155; }
+body.dark .feature-card h3 { color: #f1f5f9; }
+body.dark .feature-card p  { color: #94a3b8; }
+body.dark .feature-card:hover { box-shadow: 0 8px 28px rgba(0,0,0,.5); border-color: #475569; }
+body.dark .card-cta { color: #60a5fa; }
+body.dark .card-icon.blue   { background: #2563eb; }
+body.dark .card-icon.purple { background: #7c3aed; }
+body.dark .card-icon.green  { background: #059669; }
+
+/* Hero & stats */
+body.dark .hero h1 { color: #60a5fa; }
+body.dark .hero p  { color: #94a3b8; }
+body.dark .stats-bar { background: #1e293b; border-color: #334155; }
+body.dark .stat-val { color: #60a5fa; }
+body.dark .stat-lbl { color: #94a3b8; }
+
+/* Upload zone */
+body.dark .upload-zone { background: #0f172a; border-color: #334155; }
+body.dark .upload-zone:hover { background: #1e3a5f; border-color: #3b82f6; }
+body.dark .upload-zone.has-file { background: #052e16; border-color: #34d399; }
+body.dark .uz-title { color: #f1f5f9; }
+body.dark .uz-sub   { color: #94a3b8; }
+body.dark .uz-icon  { color: #64748b; }
+
+/* File cards */
+body.dark .file-card { background: #0f172a; border-color: #334155; }
+body.dark .fc-name   { color: #f1f5f9; }
+body.dark .fc-time   { color: #94a3b8; }
+body.dark .fc-score  { background: #1e3a5f; color: #60a5fa; }
+body.dark .remove-btn { color: #64748b; }
+body.dark .remove-btn:hover { background: #450a0a; color: #f87171; }
+
+/* Quick stats */
+body.dark .quick-stats { background: #1e293b; border-color: #334155; }
+body.dark .qs-title { color: #f1f5f9; }
+body.dark .qs-key   { color: #94a3b8; }
+body.dark .qs-val   { color: #f1f5f9; }
+body.dark .qs-val.green { color: #34d399; }
+body.dark .qs-val.blue  { color: #60a5fa; }
+body.dark .qs-row   { border-color: #0f172a; }
+
+/* Chat panel */
+body.dark .chat-messages,
+body.dark .comp-messages { background: #1e293b; }
+body.dark .bubble { background: #334155; color: #f1f5f9; }
+body.dark .message.user .bubble { background: #2563eb; color: white; }
+
+/* Empty states */
+body.dark .empty-state,
+body.dark .comp-empty,
+body.dark .charts-empty { color: #94a3b8; }
+body.dark .es-icon,
+body.dark .comp-empty .es-icon { background: #1e3a5f; }
+body.dark .es-title  { color: #f1f5f9; }
+body.dark .es-sub    { color: #94a3b8; }
+body.dark .charts-empty p { color: #64748b; }
+
+/* Suggestion chips */
+body.dark .chip-btn { background: #1e293b; color: #f1f5f9; border-color: #334155; }
+body.dark .chip-btn:hover { background: #1e3a5f; color: #60a5fa; border-color: #3b82f6; }
+body.dark .comp-pill { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+body.dark .comp-pill:hover { background: #1e3a8a; }
+body.dark .comp-suggestions-label { color: #64748b; }
+body.dark .pill { background: #1e293b; border-color: #334155; color: #93c5fd; }
+
+/* Inputs */
+body.dark .comp-input-area input,
+body.dark .input-area input,
+body.dark .jd-textarea { background: #0f172a; color: #f1f5f9; border-color: #334155; }
+body.dark .comp-input-area input::placeholder,
+body.dark .input-area input::placeholder,
+body.dark .jd-textarea::placeholder { color: #64748b; }
+body.dark .comp-input-area input:focus,
+body.dark .input-area input:focus,
+body.dark .jd-textarea:focus { background: #1e293b; border-color: #3b82f6; }
+
+/* Charts */
+body.dark .charts-scroll { background: #0f172a; }
+body.dark .comp-charts-panel { background: #0f172a; }
+body.dark .chart-card { background: #1e293b; border-color: #334155; }
+body.dark .chart-card h3 { color: #f1f5f9; }
+
+/* ATS panel */
+body.dark .ats-score-card { background: #1e293b; border-color: #334155; }
+body.dark .asc-label { color: #f1f5f9; }
+body.dark .asc-num   { }  /* color set inline by JS */
+body.dark .asc-grade { color: #94a3b8; }
+body.dark .asc-bar   { background: #334155; }
+body.dark .asc-hint  { background: #292524; border-color: #78350f; color: #fcd34d; }
+
+/* JD section */
+body.dark .jd-label { color: #f1f5f9; }
+
+/* ATS result block */
+body.dark .arc-grade   { color: #94a3b8; }
+body.dark .arc-summary { background: #0f172a; color: #94a3b8; }
+body.dark .arc-slabel  { }
+body.dark .chip-g { background: #064e3b; color: #6ee7b7; }
+body.dark .chip-r { background: #450a0a; color: #fca5a5; }
+
+/* Panel titles & headers */
+body.dark .panel-title  { color: #f1f5f9; }
+body.dark .count-badge  { color: #94a3b8; }
+body.dark .ch-title     { color: #f1f5f9; }
+body.dark .ch-sub       { color: #94a3b8; }
+body.dark .comp-chat-header,
+body.dark .comp-charts-header { color: #f1f5f9; border-color: #334155; }
+body.dark .jd-label span { color: #64748b; }
+body.dark .back-link    { color: #94a3b8; }
+body.dark .back-link:hover { color: #f1f5f9; }
+body.dark .logo-name    { color: #f1f5f9; }
+body.dark .logo-sub     { color: #94a3b8; }
+body.dark .theme-btn    { color: #94a3b8; border-color: #334155; }
+body.dark .theme-btn:hover { background: #0f172a; color: #f1f5f9; }
+
+/* ---- PAGE SWITCH ---- */
+.page { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.page.active { display: flex; }
+
+/* ===================================================
+   LANDING PAGE
+=================================================== */
+#landingPage { overflow-y: auto; }
+
+.hero { text-align: center; padding: 64px 24px 40px; }
+.hero h1 { font-size: clamp(1.9rem, 4.5vw, 3rem); font-weight: 800; color: var(--primary); letter-spacing: -0.02em; margin-bottom: 14px; }
+.hero p { font-size: 1.05rem; color: var(--muted); max-width: 520px; margin: 0 auto 50px; line-height: 1.7; }
+
+.cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 22px; max-width: 1060px; margin: 0 auto; padding: 0 24px 56px; }
+
+.feature-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px 26px; cursor: pointer; transition: box-shadow .2s, transform .2s; text-align: left; }
+.feature-card:hover { box-shadow: 0 8px 28px rgba(37,99,235,.10); transform: translateY(-3px); }
+.card-icon { width: 60px; height: 60px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 18px; }
+.card-icon.blue   { background: var(--primary); }
+.card-icon.purple { background: var(--purple); }
+.card-icon.green  { background: var(--green); }
+.feature-card h3 { font-size: 1.08rem; font-weight: 700; margin-bottom: 10px; }
+.feature-card p  { font-size: 0.88rem; color: var(--muted); line-height: 1.6; margin-bottom: 18px; }
+.card-cta { font-size: 0.88rem; font-weight: 600; color: var(--primary); }
+
+.stats-bar { display: grid; grid-template-columns: repeat(3,1fr); border-top: 1px solid var(--border); background: var(--card); padding: 40px 24px; text-align: center; }
+.stat-val { font-size: 2rem; font-weight: 800; color: var(--primary); }
+.stat-lbl { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+
+/* ===================================================
+   SHARED SPLIT LAYOUT
+=================================================== */
+.split { display: flex; flex: 1; overflow: hidden; }
+
+/* LEFT PANEL */
+.left-panel {
+  width: 330px; flex-shrink: 0; padding: 20px;
+  display: flex; flex-direction: column; gap: 15px;
+  border-right: 1px solid var(--border); background: var(--card); overflow-y: auto;
+}
+.panel-title { font-weight: 700; font-size: 0.98rem; }
+.panel-title-row { display: flex; justify-content: space-between; align-items: center; }
+.count-badge { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+
+.upload-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 34px 18px; text-align: center; cursor: pointer; background: var(--bg); transition: .2s; }
+.upload-zone:hover { border-color: var(--primary); background: var(--primary-light); }
+.upload-zone.has-file { border-color: var(--green); background: #f0fdf4; }
+.uz-icon { font-size: 26px; margin-bottom: 10px; color: var(--muted); }
+.uz-title { font-size: 0.88rem; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.uz-sub   { font-size: 0.78rem; color: var(--muted); }
+
+.file-card { display: flex; align-items: center; gap: 11px; background: var(--bg); border: 1px solid var(--border); border-radius: 11px; padding: 13px 14px; }
+.fc-icon { font-size: 20px; color: var(--primary); flex-shrink: 0; }
+.fc-info { flex: 1; min-width: 0; }
+.fc-name { font-size: 0.86rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fc-time { font-size: 0.72rem; color: var(--muted); margin-top: 1px; }
+.fc-status { display: flex; align-items: center; gap: 5px; font-size: 0.72rem; color: var(--green); margin-top: 3px; flex-wrap: wrap; }
+.fc-score { font-size: 0.72rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 1px 7px; border-radius: 20px; }
+.remove-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 18px; padding: 2px 6px; border-radius: 5px; line-height: 1; }
+.remove-btn:hover { background: var(--red-light); color: #dc2626; }
+
+.quick-stats { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.qs-title { font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; }
+.qs-row { display: flex; justify-content: space-between; font-size: 0.84rem; padding: 7px 0; border-bottom: 1px solid var(--bg); }
+.qs-row:last-child { border: none; }
+.qs-key { color: var(--muted); }
+.qs-val { font-weight: 600; }
+.qs-val.green { color: var(--green); }
+.qs-val.blue  { color: var(--primary); }
+
+.ats-score-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; text-align: center; }
+.asc-label { font-size: 0.9rem; font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.asc-num   { font-size: 3rem; font-weight: 800; line-height: 1; }
+.asc-grade { font-size: 0.82rem; color: var(--muted); margin: 4px 0 10px; }
+.asc-bar   { height: 8px; background: var(--border); border-radius: 20px; overflow: hidden; margin-bottom: 10px; }
+.asc-fill  { height: 100%; border-radius: 20px; transition: width .8s ease; }
+.asc-hint  { font-size: 0.78rem; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 10px; text-align: left; }
+
+.jd-section { display: flex; flex-direction: column; gap: 7px; }
+.jd-label { font-size: 0.85rem; font-weight: 600; }
+.jd-textarea { width: 100%; padding: 11px; border: 1px solid var(--border); border-radius: 9px; font-family: inherit; font-size: 0.83rem; resize: none; outline: none; line-height: 1.5; background: var(--bg); }
+.jd-textarea:focus { border-color: var(--primary); background: white; }
+
+/* RIGHT PANEL */
+.right-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.chat-header { display: flex; align-items: center; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--border); background: var(--card); flex-shrink: 0; }
+.ch-avatar { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: white; flex-shrink: 0; }
+.ch-avatar.purple { background: linear-gradient(135deg, var(--purple), var(--primary)); }
+.ch-avatar.green  { background: linear-gradient(135deg, var(--green), #0891b2); }
+.ch-title { font-weight: 700; font-size: 1rem; }
+.ch-sub   { font-size: 0.78rem; color: var(--muted); margin-top: 1px; }
+
+.chat-messages { flex: 1; overflow-y: auto; padding: 22px; display: flex; flex-direction: column; gap: 15px; }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; text-align: center; color: var(--muted); padding: 40px; }
+.es-icon { width: 70px; height: 70px; border-radius: 18px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 16px; }
+.es-title { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.es-sub   { font-size: 0.85rem; margin-bottom: 22px; }
+
+.suggestion-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.chip-btn { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 8px 16px; font-size: 0.82rem; font-weight: 500; color: var(--text); cursor: pointer; transition: .15s; font-family: inherit; }
+.chip-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+
+.message { display: flex; gap: 10px; align-items: flex-start; }
+.av { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.av.ai { background: var(--purple); color: white; }
+.av.usr { background: var(--primary); color: white; }
+.bubble { padding: 11px 15px; border-radius: 12px; font-size: 0.88rem; line-height: 1.6; max-width: 82%; background: var(--bg); }
+.message.user { flex-direction: row-reverse; }
+.message.user .bubble { background: var(--primary); color: white; }
+
+.typing span { display: inline-block; width: 6px; height: 6px; background: #94a3b8; border-radius: 50%; margin: 0 2px; animation: bop 1.2s infinite; }
+.typing span:nth-child(2) { animation-delay: .2s; }
+.typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes bop { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
+
+.pills-row { display: flex; flex-wrap: wrap; gap: 7px; padding: 11px 22px; border-bottom: 1px solid var(--border); background: var(--card); flex-shrink: 0; }
+.pill { background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 5px 13px; font-size: 0.8rem; color: var(--primary); font-weight: 500; cursor: pointer; transition: .15s; }
+.pill:hover { background: var(--primary-light); border-color: var(--primary); }
+
+.input-area { padding: 14px 22px; border-top: 1px solid var(--border); background: var(--card); display: flex; gap: 10px; flex-shrink: 0; }
+.input-area input { flex: 1; padding: 11px 15px; border: 1px solid var(--border); border-radius: 9px; font-family: inherit; font-size: 0.9rem; outline: none; background: var(--bg); }
+.input-area input:focus { border-color: var(--primary); background: white; }
+.send-btn { width: 42px; height: 42px; border-radius: 9px; background: var(--primary); color: white; border: none; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: .15s; flex-shrink: 0; }
+.send-btn:hover { background: var(--primary-dark); }
+
+.btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 18px; border-radius: 9px; border: none; font-weight: 600; font-size: 0.86rem; cursor: pointer; transition: .15s; font-family: inherit; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+
+/* ---- COMPARISON: 2-panel right side ---- */
+.comp-right {
+  flex: 1; display: flex; overflow: hidden;
+}
+
+/* Chat half */
+.comp-chat-panel {
+  width: 42%; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--card);
+  overflow: hidden;
+}
+.comp-chat-header {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px; color: var(--text);
+}
+.comp-chat-header span { font-size: 15px; }
+.comp-messages {
+  flex: 1; overflow-y: auto; padding: 16px 18px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.comp-suggestions {
+  padding: 12px 18px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 7px; flex-shrink: 0;
+}
+.comp-suggestions-label { font-size: 0.73rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.comp-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.comp-pill {
+  background: var(--primary-light); border: 1px solid #bfdbfe;
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 0.78rem; color: var(--primary); font-weight: 500;
+  cursor: pointer; transition: .15s; line-height: 1.4;
+}
+.comp-pill:hover { background: #dbeafe; border-color: var(--primary); }
+.comp-input-area {
+  padding: 12px 18px; border-top: 1px solid var(--border);
+  display: flex; gap: 8px; flex-shrink: 0; background: var(--card);
+}
+.comp-input-area input {
+  flex: 1; padding: 10px 13px; border: 1px solid var(--border);
+  border-radius: 9px; font-family: inherit; font-size: 0.86rem;
+  outline: none; background: var(--bg);
+}
+.comp-input-area input:focus { border-color: var(--primary); background: white; }
+.comp-send-btn {
+  width: 38px; height: 38px; border-radius: 9px; background: var(--primary);
+  color: white; border: none; cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: .15s;
+}
+.comp-send-btn:hover { background: var(--primary-dark); }
+
+/* Charts half */
+.comp-charts-panel {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg);
+}
+.comp-charts-header {
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px; background: var(--card);
+}
+.charts-scroll { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.chart-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+.chart-card h3 { font-size: 0.88rem; font-weight: 700; margin-bottom: 14px; color: var(--text); }
+.chart-wrapper { position: relative; height: 220px; }
+
+/* Empty state inside comp chat */
+.comp-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: 24px; color: var(--muted);
+}
+.comp-empty .es-icon { width: 56px; height: 56px; border-radius: 14px; background: var(--primary-light); display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 12px; }
+.comp-empty .es-title { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 5px; }
+.comp-empty .es-sub { font-size: 0.8rem; line-height: 1.5; }
+
+/* Empty charts panel */
+.charts-empty {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: 32px; color: var(--muted);
+}
+.charts-empty .ce-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+.charts-empty p { font-size: 0.85rem; }
+
+/* ATS result inside right panel */
+.ats-result-block { padding: 18px 22px; }
+.arc-score { font-size: 1.6rem; font-weight: 800; margin-bottom: 3px; }
+.arc-grade { font-size: 0.82rem; color: var(--muted); margin-bottom: 14px; }
+.arc-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.chip-g { background: var(--green-light); color: #065f46; padding: 3px 11px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.chip-r { background: var(--red-light); color: #991b1b; padding: 3px 11px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+.arc-summary { font-size: 0.85rem; color: #475569; background: var(--bg); padding: 13px; border-radius: 9px; line-height: 1.6; margin-top: 14px; }
+.arc-slabel { font-size: 0.82rem; font-weight: 700; margin-top: 13px; margin-bottom: 5px; }
+
+/* Toast */
+#toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: #1e293b; color: white; padding: 11px 22px; border-radius: 9px; font-size: 0.88rem; z-index: 9999; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; }
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ===================== HEADER ===================== -->
+<header>
+  <div class="logo" onclick="goHome()">
+    <div class="logo-icon">🤖</div>
+    <div>
+      <div class="logo-name">ResumeBot</div>
+      <div class="logo-sub">AI-powered Resume Intelligence Platform</div>
+    </div>
+  </div>
+  <button class="back-link" id="backBtn" onclick="goHome()">← Back to Home</button>
+  <button class="theme-btn" id="themeBtn" onclick="toggleDark()">🌙 Dark</button>
+</header>
+
+<!-- ===================== LANDING ===================== -->
+<div class="page active" id="landingPage">
+  <div class="hero">
+    <h1>Intelligent Resume Analysis</h1>
+    <p>Leverage AI to streamline your hiring process. Analyze, compare, and optimize resumes with enterprise-grade intelligence.</p>
+  </div>
+
+  <div class="cards-grid">
+    <div class="feature-card" onclick="showPage('singlePage')">
+      <div class="card-icon blue">💬</div>
+      <h3>Single Resume Chat</h3>
+      <p>Upload one resume and ask AI anything about it. Get instant insights, summaries, and detailed analysis.</p>
+      <span class="card-cta">Get started ›</span>
+    </div>
+    <div class="feature-card" onclick="showPage('compPage')">
+      <div class="card-icon purple">📊</div>
+      <h3>Resume Comparison Mode</h3>
+      <p>Upload multiple resumes and compare candidates with interactive charts and comprehensive analytics.</p>
+      <span class="card-cta">Get started ›</span>
+    </div>
+    <div class="feature-card" onclick="showPage('atsPage')">
+      <div class="card-icon green">✅</div>
+      <h3>ATS Score Checker</h3>
+      <p>Evaluate resume compatibility against job descriptions. Get actionable ATS optimization recommendations.</p>
+      <span class="card-cta">Get started ›</span>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div><div class="stat-val">10K+</div><div class="stat-lbl">Resumes Analyzed</div></div>
+    <div><div class="stat-val">80%</div><div class="stat-lbl">Time Saved</div></div>
+    <div><div class="stat-val">98%</div><div class="stat-lbl">Accuracy Rate</div></div>
+  </div>
+</div>
+
+<!-- ===================== SINGLE RESUME ===================== -->
+<div class="page" id="singlePage">
+  <div class="split">
+    <div class="left-panel">
+      <div class="panel-title">Upload Resume</div>
+
+      <div class="upload-zone" id="singleZone" onclick="document.getElementById('singleFileInput').click()">
+        <div class="uz-icon">⬆</div>
+        <div class="uz-title">Click to upload PDF</div>
+        <div class="uz-sub">Maximum file size: 10MB</div>
+      </div>
+
+      <div id="singleFileCard" style="display:none;" class="file-card">
+        <div class="fc-icon">📄</div>
+        <div class="fc-info">
+          <div class="fc-name" id="singleFName"></div>
+          <div class="fc-time" id="singleFTime"></div>
+          <div class="fc-status">✅ Processed</div>
+        </div>
+      </div>
+
+      <div id="singleStats" class="quick-stats" style="display:none;">
+        <div class="qs-title">Quick Stats</div>
+        <div class="qs-row"><span class="qs-key">Status</span><span class="qs-val green">Ready</span></div>
+        <div class="qs-row"><span class="qs-key">File Size</span><span class="qs-val blue" id="singleFSize">—</span></div>
+        <div class="qs-row"><span class="qs-key">Pages</span><span class="qs-val" id="singleFPages">—</span></div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="chat-header">
+        <div class="ch-avatar purple">✦</div>
+        <div>
+          <div class="ch-title">Single Resume Analysis</div>
+          <div class="ch-sub">Ask me anything about the resume(s)</div>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="singleChat">
+        <div class="empty-state" id="singleEmpty">
+          <div class="es-icon">🤖</div>
+          <div class="es-title">Ready to analyze</div>
+          <div class="es-sub">Try one of the suggested prompts below or ask your own question</div>
+          <!-- <div class="suggestion-chips">
+            <button class="chip-btn" onclick="singleAsk('Summarize this resume in 3 key points')">Summarize this resume in 3 key points</button>
+            <button class="chip-btn" onclick="singleAsk(&quot;What are the candidate's strongest skills?&quot;)">What are the candidate's strongest skills?</button>
+            <button class="chip-btn" onclick="singleAsk('How many years of experience does this candidate have?')">How many years of experience does this candidate have?</button>
+            <button class="chip-btn" onclick="singleAsk(&quot;What's the candidate's educational background?&quot;)">What's the candidate's educational background?</button>
+          </div> -->
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="text" id="singleInput" placeholder="Ask a question about the resume(s)..." onkeypress="if(event.key==='Enter') sendSingle()">
+        <button class="send-btn" onclick="sendSingle()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== COMPARISON ===================== -->
+<div class="page" id="compPage">
+  <div class="split">
+
+    <!-- FAR LEFT: Upload panel -->
+    <div class="left-panel">
+      <div class="panel-title-row">
+        <span class="panel-title">Upload Resumes</span>
+        <span class="count-badge">👥 <span id="compCount">0 uploaded</span></span>
+      </div>
+      <div class="upload-zone" onclick="document.getElementById('multiFileInput').click()">
+        <div class="uz-icon">⬆</div>
+        <div class="uz-title">Click to upload PDFs</div>
+        <div class="uz-sub">Multiple files supported</div>
+      </div>
+      <div id="candidatesGrid" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+
+    <!-- RIGHT SIDE: Chat panel + Charts panel side by side -->
+    <div class="comp-right">
+
+      <!-- CHAT PANEL -->
+      <div class="comp-chat-panel">
+        <div class="comp-chat-header">
+          <span>💬</span> Chat
+        </div>
+
+        <!-- Messages -->
+        <div class="comp-messages" id="compChat">
+          <div class="comp-empty" id="compChatEmpty">
+            <div class="es-icon">🤖</div>
+            <div class="es-title">Ready to analyze</div>
+            <div class="es-sub">Upload resumes then ask me anything about the candidates</div>
+          </div>
+        </div>
+
+        
+
+        <!-- Input -->
+        <div class="comp-input-area">
+          <input type="text" id="compInput" placeholder="Ask about the candidates..." onkeypress="if(event.key==='Enter') sendComparison()">
+          <button class="comp-send-btn" onclick="sendComparison()">➤</button>
+        </div>
+      </div>
+
+      <!-- CHARTS PANEL -->
+      <div class="comp-charts-panel">
+        <div class="comp-charts-header">
+          <span>📊</span> Analytics
+        </div>
+        <div class="charts-scroll" id="chartsScroll">
+          <div class="charts-empty" id="compChartsEmpty">
+            <div class="ce-icon">📈</div>
+            <p>Charts will appear here after uploading resumes</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end comp-right -->
+  </div>
+</div>
+
+<!-- ===================== ATS PAGE ===================== -->
+<div class="page" id="atsPage">
+  <div class="split">
+    <div class="left-panel">
+      <div class="panel-title">Upload Resume</div>
+
+      <div class="upload-zone" id="atsZone" onclick="document.getElementById('atsFileInput').click()">
+        <div class="uz-icon">⬆</div>
+        <div class="uz-title">Click to upload PDF</div>
+        <div class="uz-sub">Maximum file size: 10MB</div>
+      </div>
+
+      <div id="atsFileCard" style="display:none;" class="file-card">
+        <div class="fc-icon">📄</div>
+        <div class="fc-info">
+          <div class="fc-name" id="atsFName"></div>
+          <div class="fc-time" id="atsFTime"></div>
+          <div class="fc-status">✅ Processed <span class="fc-score" id="atsScoreBadge" style="display:none;"></span></div>
+        </div>
+      </div>
+
+      <!-- Score display -->
+      <div id="atsScoreCard" class="ats-score-card" style="display:none;">
+        <div class="asc-label">🎯 ATS Score</div>
+        <div class="asc-num" id="atsScoreNum">—</div>
+        <div class="asc-grade" id="atsScoreGrade">—</div>
+        <div class="asc-bar"><div class="asc-fill" id="atsBarFill" style="width:0%;background:var(--primary);"></div></div>
+        <div class="asc-hint">💡 Ask the AI assistant for optimization tips to improve your score!</div>
+      </div>
+
+      <!-- JD input -->
+      <div class="jd-section">
+        <div class="jd-label">Job Description <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">(Optional)</span></div>
+        <textarea class="jd-textarea" id="jdInput" rows="6" placeholder="Paste Job Description here..."></textarea>
+        <button class="btn btn-primary" onclick="checkATS()" id="checkATSBtn">Check ATS Score</button>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="chat-header">
+        <div class="ch-avatar green">✦</div>
+        <div>
+          <div class="ch-title">ATS Compatibility Checker</div>
+          <div class="ch-sub">Ask me anything about the resume(s)</div>
+        </div>
+      </div>
+
+      <div class="chat-messages" id="atsChat">
+        <div class="empty-state" id="atsEmpty">
+          <div class="es-icon">🤖</div>
+          <div class="es-title">Ready to analyze</div>
+          <div class="es-sub">Try one of the suggested prompts below or ask your own question</div>
+          <!-- <div class="suggestion-chips">
+            <button class="chip-btn" onclick="atsAsk(&quot;What's the ATS compatibility score?&quot;)">What's the ATS compatibility score?</button>
+            <button class="chip-btn" onclick="atsAsk('How can I improve this resume for ATS?')">How can I improve this resume for ATS?</button>
+            <button class="chip-btn" onclick="atsAsk('Which keywords are missing?')">Which keywords are missing?</button>
+            <button class="chip-btn" onclick="atsAsk('Analyze the formatting for ATS systems')">Analyze the formatting for ATS systems</button>
+          </div> -->
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input type="text" id="atsInput" placeholder="Ask a question about the resume(s)..." onkeypress="if(event.key==='Enter') sendAts()">
+        <button class="send-btn" onclick="sendAts()">➤</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== HIDDEN FILE INPUTS ===================== -->
+<input type="file" id="singleFileInput" accept=".pdf" style="display:none" onchange="handleSingleUpload(this)">
+<input type="file" id="multiFileInput" multiple accept=".pdf" style="display:none" onchange="handleMultiUpload(this)">
+<input type="file" id="atsFileInput" accept=".pdf" style="display:none" onchange="handleAtsUpload(this)">
+
+<div id="toast"></div>
+
+<!-- ===================== SCRIPT ===================== -->
+<script>
+// ===== DARK MODE =====
+function toggleDark() {
+  const isDark = document.body.classList.toggle('dark');
+  const btn = document.getElementById('themeBtn');
+  btn.textContent = isDark ? '☀️ Light' : '🌙 Dark';
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
+// Apply saved theme on load
+if (localStorage.getItem('theme') === 'dark') {
+  document.body.classList.add('dark');
+  document.getElementById('themeBtn').textContent = '☀️ Light';
+}
+
+// ===== NAV =====
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('backBtn').style.display = id === 'landingPage' ? 'none' : 'flex';
+}
+function goHome() { showPage('landingPage'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ===== MSG HELPERS =====
+function mkMsg(type, text, chatId) {
+  const chat = document.getElementById(chatId);
+  const div = document.createElement('div');
+  div.className = `message ${type}`;
+  const av = `<div class="av ${type==='ai'?'ai':'usr'}">${type==='ai'?'✦':'U'}</div>`;
+  const bubble = `<div class="bubble">${text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>')}</div>`;
+  div.innerHTML = type === 'ai' ? av + bubble : bubble + av;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+function mkTyping(chatId) {
+  const chat = document.getElementById(chatId);
+  const div = document.createElement('div');
+  div.className = 'message ai';
+  div.innerHTML = `<div class="av ai">✦</div><div class="bubble typing"><span></span><span></span><span></span></div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+// ===== SINGLE RESUME =====
+async function handleSingleUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('resume', file);
+  showToast('Uploading...');
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    document.getElementById('singleZone').classList.add('has-file');
+    document.getElementById('singleFileCard').style.display = 'flex';
+    document.getElementById('singleFName').textContent = file.name;
+    document.getElementById('singleFTime').textContent = new Date().toLocaleTimeString();
+    document.getElementById('singleStats').style.display = 'block';
+    document.getElementById('singleFSize').textContent = (file.size/1024/1024).toFixed(1) + ' MB';
+    document.getElementById('singleFPages').textContent = data.pages || '—';
+
+    showToast('✅ Resume uploaded!');
+    document.getElementById('singleEmpty').style.display = 'none';
+    mkMsg('ai', `✓ Got it! I've loaded <strong>${file.name}</strong>. What would you like to know?`, 'singleChat');
+  } catch(e) { showToast('❌ Upload failed'); }
+}
+
+function singleAsk(q) { document.getElementById('singleInput').value = q; sendSingle(); }
+
+async function sendSingle() {
+  const input = document.getElementById('singleInput');
+  const q = input.value.trim(); if (!q) return;
+  document.getElementById('singleEmpty').style.display = 'none';
+  mkMsg('user', q, 'singleChat'); input.value = '';
+  const t = mkTyping('singleChat');
+  try {
+    const res = await fetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question:q}) });
+    const data = await res.json();
+    t.remove(); mkMsg('ai', data.answer || 'Sorry, something went wrong.', 'singleChat');
+  } catch(e) { t.remove(); mkMsg('ai','Connection error. Please check your server.','singleChat'); }
+}
+
+// ===== COMPARISON =====
+let comparisonId = null;
+let candidates = [];
+let compCount = 0;
+
+// init session
+fetch('/comparison/create', { method: 'POST' })
+  .then(r => r.json()).then(d => comparisonId = d.comparison_id).catch(()=>{});
+
+async function handleMultiUpload(input) {
+  const files = Array.from(input.files); if (!files.length) return;
+
+  if (!comparisonId) {
+    const r = await fetch('/comparison/create', { method: 'POST' });
+    comparisonId = (await r.json()).comparison_id;
+  }
+
+  const fd = new FormData();
+  files.forEach(f => fd.append('files[]', f));
+  showToast('Processing Resumes...');
+
+  try {
+    const res = await fetch(`/comparison/${comparisonId}/upload`, { method:'POST', body:fd });
+    const data = await res.json();
+
+    files.forEach((f, i) => {
+      if (!candidates.find(c => c.name === f.name)) {
+        const score = data.candidates?.[i]?.score || null;
+        candidates.push({ name: f.name });
+        addCandidateCard(f.name, score);
+      }
+    });
+
+    compCount += files.length;
+    document.getElementById('compCount').textContent = compCount + ' uploaded';
+    document.getElementById('compChatEmpty').style.display = 'none';
+    document.getElementById('compChartsEmpty').style.display = 'none';
+    showToast(`✅ ${files.length} Resume(s) Uploaded!`);
+    loadSuggestions();
+    loadCharts();
+  } catch(e) { showToast('❌ Upload failed'); }
+}
+
+function addCandidateCard(name, score) {
+  const grid = document.getElementById('candidatesGrid');
+  const div = document.createElement('div');
+  div.className = 'file-card'; div.id = `card-${name}`;
+  div.innerHTML = `
+    <div class="fc-icon">📄</div>
+    <div class="fc-info">
+      <div class="fc-name">${name}</div>
+      <div class="fc-status">✅ Processed ${score?`<span class="fc-score">Score: ${score}%</span>`:''}</div>
+    </div>
+    <button class="remove-btn" onclick="removeCandidate('${name}')">×</button>
+  `;
+  grid.appendChild(div);
+}
+
+function removeCandidate(name) {
+  candidates = candidates.filter(c => c.name !== name);
+  const el = document.getElementById(`card-${name}`);
+  if (el) el.remove();
+  compCount = Math.max(0, compCount - 1);
+  document.getElementById('compCount').textContent = compCount + ' uploaded';
+}
+
+async function loadSuggestions() {
+  if (!comparisonId) return;
+  try {
+    const res = await fetch(`/comparison/${comparisonId}/suggestions`);
+    const data = await res.json();
+    if (data.suggestions?.length) {
+      document.getElementById('compSuggestions').style.display = 'flex';
+      document.getElementById('chatPills').innerHTML = data.suggestions.map(s =>
+        `<span class="comp-pill" onclick="sendComparison('${s.replace(/'/g,"\\'")}')">${s}</span>`
+      ).join('');
+    }
+  } catch(e) {}
+}
+
+async function loadCharts() {
+  try {
+    const res = await fetch(`/comparison/${comparisonId}/analyze`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const c = data.data?.candidates || []; if (!c.length) return;
+
+    const scroll = document.getElementById('chartsScroll');
+    scroll.innerHTML = '';
+
+    // Bar: overall score
+    const b1 = addChartCard(scroll, 'Overall Score Comparison', '220px');
+    new Chart(b1.getContext('2d'), {
+      type: 'bar',
+      data: { labels: c.map(x=>x.name), datasets: [{ label:'Overall Score', data:c.map(x=>x.relevance_score||x.score||0), backgroundColor:'#2563eb', borderRadius:6 }] },
+      options: { responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,max:100}}, plugins:{legend:{position:'top'}} }
+    });
+
+    // Combined bar+line
+    if (c.some(x=>x.years_experience)) {
+      const b2 = addChartCard(scroll, 'Relevance Score & Years of Experience', '220px');
+      new Chart(b2.getContext('2d'), {
+        type:'bar',
+        data:{ labels:c.map(x=>x.name), datasets:[
+          { label:'Relevance Score', data:c.map(x=>x.relevance_score||0), backgroundColor:'#2563eb', borderRadius:6 },
+          { label:'Years Experience', data:c.map(x=>x.years_experience||0), type:'line', borderColor:'#7c3aed', backgroundColor:'rgba(124,58,237,0.1)', tension:0.3, fill:true }
+        ]},
+        options:{ responsive:true, maintainAspectRatio:false, scales:{y:{beginAtZero:true,max:100,ticks:{stepSize:10}}}, plugins:{legend:{position:'top'},tooltip:{mode:'index',intersect:false}} }
+      });
+    }
+
+    // Radar
+    if (data.data?.skills) {
+      const sk = data.data.skills;
+      const b3 = addChartCard(scroll, 'Skills Comparison (Radar Chart)', '260px');
+      const cols = ['rgba(37,99,235,0.35)','rgba(124,58,237,0.35)','rgba(5,150,105,0.35)'];
+      const bords = ['#2563eb','#7c3aed','#059669'];
+      new Chart(b3.getContext('2d'), {
+        type:'radar',
+        data:{ labels:sk.labels||['JavaScript','Python','SQL','Leadership','Communication'],
+          datasets: c.map((cd,i)=>({ label:cd.name, data:sk.data?.[i]||[70,80,65,75,60], backgroundColor:cols[i%cols.length], borderColor:bords[i%bords.length], borderWidth:2 })) },
+        options:{ responsive:true, maintainAspectRatio:false, scales:{r:{beginAtZero:true,max:100}} }
+      });
+    }
+  } catch(e) { console.log('Charts skipped:', e); }
+}
+
+function addChartCard(parent, title, height='220px') {
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+  const id = 'chart_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+  card.innerHTML = `<h3>${title}</h3><div class="chart-wrapper" style="height:${height};"><canvas id="${id}"></canvas></div>`;
+  parent.appendChild(card);
+  return document.getElementById(id);
+}
+
+async function sendComparison(msg) {
+  const input = document.getElementById('compInput');
+  const message = msg || input.value.trim(); if (!message) return;
+  if (!comparisonId) { showToast('Please upload resumes first.'); return; }
+
+  document.getElementById('compChatEmpty').style.display = 'none';
+  mkMsg('user', message, 'compChat');
+  if (!msg) input.value = '';
+
+  const t = mkTyping('compChat');
+  try {
+    const res = await fetch(`/comparison/${comparisonId}/chat`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message })
+    });
+    const data = await res.json();
+    t.remove();
+    mkMsg('ai', data.response || 'Sorry, something went wrong.', 'compChat');
+    if (data.graph_data) renderDynChart(data.graph_data);
+  } catch(e) { t.remove(); mkMsg('ai','Connection error. Please check your server.','compChat'); }
+}
+
+function renderDynChart(config) {
+  const scroll = document.getElementById('chartsScroll');
+  const cv = addChartCard(scroll, config.title || 'Analysis');
+  new Chart(cv.getContext('2d'), {
+    type: config.type || 'bar',
+    data: { labels: config.labels, datasets: config.datasets },
+    options: { responsive:true, maintainAspectRatio:false }
+  });
+  scroll.scrollTop = scroll.scrollHeight;
+}
+
+// ===== ATS =====
+let atsUploaded = false;
+
+async function handleAtsUpload(input) {
+  const file = input.files[0]; if (!file) return;
+  const fd = new FormData(); fd.append('resume', file);
+  showToast('Uploading...');
+  try {
+    const res = await fetch('/upload', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+
+    document.getElementById('atsZone').classList.add('has-file');
+    document.getElementById('atsFileCard').style.display = 'flex';
+    document.getElementById('atsFName').textContent = file.name;
+    document.getElementById('atsFTime').textContent = new Date().toLocaleTimeString();
+    atsUploaded = true;
+    showToast('✅ Resume uploaded!');
+    document.getElementById('atsEmpty').style.display = 'none';
+    mkMsg('ai', `✓ Resume loaded: <strong>${file.name}</strong>. Paste a job description and click "Check ATS Score", or ask me anything!`, 'atsChat');
+  } catch(e) { showToast('❌ Upload failed'); }
+}
+
+async function checkATS() {
+  if (!atsUploaded) { showToast('Please upload a resume first.'); return; }
+  const jd = document.getElementById('jdInput').value.trim();
+  const btn = document.getElementById('checkATSBtn');
+  btn.disabled = true; btn.textContent = 'Checking...';
+  try {
+    const res = await fetch('/ats-score', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ job_description: jd })
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    displayATS(data);
+  } catch(e) { alert('Error connecting to server.'); }
+  finally { btn.disabled = false; btn.textContent = 'Check ATS Score'; }
+}
+
+function displayATS(data) {
+  const score   = data['ATS Score'] || 0;
+  const matched = data['Matched Skills'] || [];
+  const missing = data['Missing Skills'] || [];
+  const summary = data['Summary'] || '';
+  const grade   = score >= 70 ? 'Good' : score >= 50 ? 'Average' : 'Needs Work';
+  const color   = score >= 70 ? '#059669' : score >= 50 ? '#d97706' : '#dc2626';
+
+  // Left panel
+  const scoreCard = document.getElementById('atsScoreCard');
+  scoreCard.style.display = 'block';
+  const numEl = document.getElementById('atsScoreNum');
+  numEl.textContent = score; numEl.style.color = color;
+  document.getElementById('atsScoreGrade').textContent = grade;
+  document.getElementById('atsBarFill').style.width = score + '%';
+  document.getElementById('atsBarFill').style.background = color;
+  const badge = document.getElementById('atsScoreBadge');
+  badge.textContent = `Score: ${score}%`; badge.style.display = 'inline';
+
+  // Right panel result block
+  document.getElementById('atsEmpty').style.display = 'none';
+  const chat = document.getElementById('atsChat');
+  const block = document.createElement('div');
+  block.className = 'ats-result-block';
+  block.innerHTML = `
+    <div class="arc-score" style="color:${color};">${score}% ATS Score</div>
+    <div class="arc-grade">${grade} compatibility</div>
+    ${matched.length ? `<div class="arc-slabel" style="color:#065f46;">✓ Matched Skills</div><div class="arc-chips">${matched.map(s=>`<span class="chip-g">${s}</span>`).join('')}</div>` : ''}
+    ${missing.length ? `<div class="arc-slabel" style="color:#991b1b;">✗ Missing Skills</div><div class="arc-chips">${missing.map(s=>`<span class="chip-r">${s}</span>`).join('')}</div>` : ''}
+    ${summary ? `<div class="arc-summary">${summary}</div>` : ''}
+  `;
+  chat.appendChild(block);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function atsAsk(q) { document.getElementById('atsInput').value = q; sendAts(); }
+
+async function sendAts() {
+  const input = document.getElementById('atsInput');
+  const q = input.value.trim(); if (!q) return;
+  document.getElementById('atsEmpty').style.display = 'none';
+  mkMsg('user', q, 'atsChat'); input.value = '';
+  const t = mkTyping('atsChat');
+  try {
+    const res = await fetch('/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({question:q}) });
+    const data = await res.json();
+    t.remove(); mkMsg('ai', data.answer || 'Sorry, something went wrong.', 'atsChat');
+  } catch(e) { t.remove(); mkMsg('ai','Connection error. Please check your server.','atsChat'); }
+}
+</script>
 </body>
 </html>
